@@ -1,96 +1,203 @@
 /* ============================================
-   AUTH.JS — Session management
+   AUTH.JS — Autenticación con Supabase Auth
    ============================================ */
 
 const Auth = {
 
-    SESSION_KEY: 'em_session',
+    /* ---------- SESIÓN ---------- */
+    _session: null,
+    _profile: null,
 
-    getSession() {
-        try {
-            return JSON.parse(sessionStorage.getItem(this.SESSION_KEY));
-        } catch { return null; }
+    // Obtener sesión activa de Supabase
+    async getSession() {
+        const { data } = await supabase.auth.getSession();
+        this._session = data.session;
+        return data.session;
     },
 
-    setSession(user) {
-        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(user));
+    // Obtener el perfil del usuario actual (tabla profiles)
+    async getProfile(userId) {
+        if (this._profile && this._profile.id === userId) return this._profile;
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+        if (!error) this._profile = data;
+        return data;
     },
 
-    clearSession() {
-        sessionStorage.removeItem(this.SESSION_KEY);
+    // Usuario actualmente en sesión (sincrónico, usa caché)
+    currentUser() {
+        return this._profile;
     },
 
     isLoggedIn() {
-        return !!this.getSession();
-    },
-
-    currentUser() {
-        return this.getSession();
+        return !!this._session;
     },
 
     isAdmin() {
-        const u = this.getSession();
-        return u && u.role === 'admin';
+        return this._profile && this._profile.role === 'admin';
     },
 
-    register(name, lastname, email, password, role) {
-        email = email.toLowerCase().trim();
-        if (DB.findUserByEmail(email)) {
-            return { ok: false, msg: 'Este correo ya está registrado.' };
+    /* ---------- REGISTRO ---------- */
+    async register(name, lastname, email, password, role) {
+        // 1. Crear usuario en Supabase Auth
+        const { data, error } = await supabase.auth.signUp({
+            email: email.trim().toLowerCase(),
+            password,
+            options: {
+                data: { name, lastname, role }  // metadata
+            }
+        });
+
+        if (error) {
+            // Traducir errores comunes
+            if (error.message.includes('already registered')) {
+                return { ok: false, msg: 'Este correo ya está registrado.' };
+            }
+            if (error.message.includes('Password')) {
+                return { ok: false, msg: 'La contraseña debe tener al menos 6 caracteres.' };
+            }
+            return { ok: false, msg: error.message };
         }
-        if (password.length < 6) {
-            return { ok: false, msg: 'La contraseña debe tener al menos 6 caracteres.' };
+
+        const user = data.user;
+        if (!user) return { ok: false, msg: 'No se pudo crear el usuario.' };
+
+        // 2. Guardar perfil en tabla profiles
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+                id:       user.id,
+                name:     name.trim(),
+                lastname: lastname.trim(),
+                email:    email.trim().toLowerCase(),
+                role:     role || 'student',
+            });
+
+        if (profileError) {
+            console.warn('Error guardando perfil:', profileError.message);
         }
-        const user = {
-            id: Date.now(),
-            name: name.trim(),
+
+        // 3. Cargar sesión y perfil en memoria
+        this._session = data.session;
+        this._profile = {
+            id:       user.id,
+            name:     name.trim(),
             lastname: lastname.trim(),
-            email,
-            // In production you'd hash server-side; this is demo only
-            passwordHash: btoa(password),
-            role: role || 'student',
-            joinedAt: Date.now(),
+            email:    email.trim().toLowerCase(),
+            role:     role || 'student',
+            joinedAt: new Date().toISOString(),
         };
-        DB.addUser(user);
-        this.setSession(user);
-        return { ok: true, user };
+
+        // Guardar en localStorage como caché rápido
+        localStorage.setItem('em_profile', JSON.stringify(this._profile));
+
+        return { ok: true, user: this._profile };
     },
 
-    login(email, password) {
-        email = email.toLowerCase().trim();
-        const user = DB.findUserByEmail(email);
-        if (!user) return { ok: false, msg: 'Correo no registrado.' };
-        if (user.passwordHash !== btoa(password)) return { ok: false, msg: 'Contraseña incorrecta.' };
-        this.setSession(user);
-        return { ok: true, user };
+    /* ---------- LOGIN ---------- */
+    async login(email, password) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email.trim().toLowerCase(),
+            password,
+        });
+
+        if (error) {
+            if (error.message.includes('Invalid login')) {
+                return { ok: false, msg: 'Correo o contraseña incorrectos.' };
+            }
+            return { ok: false, msg: error.message };
+        }
+
+        this._session = data.session;
+
+        // Cargar perfil desde Supabase
+        const profile = await this.getProfile(data.user.id);
+
+        if (!profile) {
+            // Si no existe perfil, crear uno básico desde metadata
+            const meta = data.user.user_metadata || {};
+            this._profile = {
+                id:       data.user.id,
+                name:     meta.name || 'Usuario',
+                lastname: meta.lastname || '',
+                email:    data.user.email,
+                role:     meta.role || 'student',
+                joinedAt: data.user.created_at,
+            };
+            // Insertar perfil faltante
+            await supabase.from('profiles').upsert(this._profile);
+        }
+
+        localStorage.setItem('em_profile', JSON.stringify(this._profile));
+
+        return { ok: true, user: this._profile };
     },
 
-    logout() {
-        this.clearSession();
+    /* ---------- LOGOUT ---------- */
+    async logout() {
+        await supabase.auth.signOut();
+        this._session = null;
+        this._profile = null;
+        localStorage.removeItem('em_profile');
         window.location.href = 'index.html';
     },
 
-    // Seed admin account if not exists
-    seedAdmin() {
-        if (!DB.findUserByEmail('admin@externado.edu.co')) {
-            DB.addUser({
-                id: 1,
-                name: 'Admin',
-                lastname: 'Move',
-                email: 'admin@externado.edu.co',
-                passwordHash: btoa('admin123'),
-                role: 'admin',
-                joinedAt: Date.now(),
-            });
+    /* ---------- INICIALIZACIÓN ---------- */
+    // Llamar al cargar cada página para restaurar sesión
+    async init() {
+        // Intentar restaurar desde caché mientras carga Supabase
+        const cached = localStorage.getItem('em_profile');
+        if (cached) {
+            try { this._profile = JSON.parse(cached); } catch {}
         }
-    }
+
+        // Verificar sesión real con Supabase
+        const { data } = await supabase.auth.getSession();
+        this._session = data.session;
+
+        if (data.session) {
+            const profile = await this.getProfile(data.session.user.id);
+            if (profile) {
+                this._profile = profile;
+                localStorage.setItem('em_profile', JSON.stringify(profile));
+            }
+        } else {
+            this._profile = null;
+            localStorage.removeItem('em_profile');
+        }
+
+        // Escuchar cambios de sesión en tiempo real
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            this._session = session;
+            if (event === 'SIGNED_OUT') {
+                this._profile = null;
+                localStorage.removeItem('em_profile');
+            }
+            if (event === 'SIGNED_IN' && session) {
+                const profile = await this.getProfile(session.user.id);
+                if (profile) {
+                    this._profile = profile;
+                    localStorage.setItem('em_profile', JSON.stringify(profile));
+                }
+            }
+            updateNavAuth();
+        });
+
+        updateNavAuth();
+        return this._profile;
+    },
+
+    /* ---------- ADMIN SEED ---------- */
+    // No necesario con Supabase Auth — el admin se crea directamente
+    // en Supabase Dashboard → Authentication → Users
+    seedAdmin() { /* No-op: usar Supabase dashboard */ }
 };
 
-// Seed admin on load
-Auth.seedAdmin();
-
 /* ============================================
-   AUTH UI FUNCTIONS (shared across pages)
+   AUTH UI — Funciones compartidas entre páginas
    ============================================ */
 
 function openAuthModal() {
@@ -109,44 +216,66 @@ function switchTab(tab) {
     document.getElementById('tab-register').classList.toggle('active', !isLogin);
     document.getElementById('form-login').style.display = isLogin ? 'flex' : 'none';
     document.getElementById('form-register').style.display = isLogin ? 'none' : 'flex';
-    document.getElementById('login-error').style.display = 'none';
-    document.getElementById('reg-error').style.display = 'none';
+    const loginErr = document.getElementById('login-error');
+    const regErr   = document.getElementById('reg-error');
+    if (loginErr) loginErr.style.display = 'none';
+    if (regErr)   regErr.style.display   = 'none';
 }
 
-function handleLogin(e) {
+async function handleLogin(e) {
     e.preventDefault();
+    const btn   = e.target.querySelector('button[type="submit"]');
     const email = document.getElementById('login-email').value;
     const pass  = document.getElementById('login-pass').value;
-    const result = Auth.login(email, pass);
+    const errEl = document.getElementById('login-error');
+
+    btn.textContent = 'Ingresando...';
+    btn.disabled = true;
+
+    const result = await Auth.login(email, pass);
+
+    btn.textContent = 'Entrar';
+    btn.disabled = false;
+
     if (!result.ok) {
-        const err = document.getElementById('login-error');
-        err.textContent = result.msg;
-        err.style.display = 'block';
+        errEl.textContent = result.msg;
+        errEl.style.display = 'block';
         return;
     }
+
     closeAuthModal();
     updateNavAuth();
     showNotification('¡Bienvenido!', `Hola ${result.user.name} 👋`, 'success');
     if (typeof onLoginSuccess === 'function') onLoginSuccess(result.user);
 }
 
-function handleRegister(e) {
+async function handleRegister(e) {
     e.preventDefault();
-    const name = document.getElementById('reg-name').value;
-    const last = document.getElementById('reg-lastname').value;
-    const email = document.getElementById('reg-email').value;
-    const pass  = document.getElementById('reg-pass').value;
-    const role  = document.getElementById('reg-role').value;
-    const result = Auth.register(name, last, email, pass, role);
+    const btn      = e.target.querySelector('button[type="submit"]');
+    const name     = document.getElementById('reg-name').value;
+    const lastname = document.getElementById('reg-lastname').value;
+    const email    = document.getElementById('reg-email').value;
+    const pass     = document.getElementById('reg-pass').value;
+    const role     = document.getElementById('reg-role').value;
+    const errEl    = document.getElementById('reg-error');
+
+    btn.textContent = 'Creando cuenta...';
+    btn.disabled = true;
+
+    const result = await Auth.register(name, lastname, email, pass, role);
+
+    btn.textContent = 'Crear cuenta';
+    btn.disabled = false;
+
     if (!result.ok) {
-        const err = document.getElementById('reg-error');
-        err.textContent = result.msg;
-        err.style.display = 'block';
+        errEl.textContent = result.msg;
+        errEl.style.display = 'block';
         return;
     }
+
     closeAuthModal();
     updateNavAuth();
-    showNotification('¡Registro exitoso!', `Bienvenido a Externado Move, ${name}!`, 'success');
+    showNotification('¡Registro exitoso!', `Bienvenido a Externado Move, ${name}! 🎉`, 'success');
     if (typeof onLoginSuccess === 'function') onLoginSuccess(result.user);
 }
 
@@ -158,7 +287,7 @@ function updateNavAuth() {
         zone.innerHTML = `<button class="btn-login-nav" onclick="openAuthModal()">Ingresar</button>`;
         return;
     }
-    const initials = (user.name[0] + (user.lastname[0] || '')).toUpperCase();
+    const initials = (user.name[0] + (user.lastname ? user.lastname[0] : '')).toUpperCase();
     zone.innerHTML = `
         <div class="nav-user" id="nav-user-btn" onclick="toggleUserMenu()">
             <div class="nav-avatar">${initials}</div>
@@ -178,10 +307,9 @@ function toggleUserMenu() {
     if (menu) menu.classList.toggle('open');
 }
 
-// Close menu when clicking outside
 document.addEventListener('click', (e) => {
     const userBtn = document.getElementById('nav-user-btn');
-    const menu = document.getElementById('user-menu');
+    const menu    = document.getElementById('user-menu');
     if (menu && userBtn && !userBtn.contains(e.target)) {
         menu.classList.remove('open');
     }
@@ -190,13 +318,12 @@ document.addEventListener('click', (e) => {
 function toggleMobileMenu() {
     document.getElementById('mobile-menu').classList.toggle('open');
 }
-
 function closeMobileMenu() {
     document.getElementById('mobile-menu').classList.remove('open');
 }
 
 /* ============================================
-   NOTIFICATION (TOAST) — shared
+   TOAST NOTIFICATIONS — compartido
    ============================================ */
 function showNotification(title, msg, type = 'default') {
     const host = document.getElementById('notification-host');
@@ -210,5 +337,5 @@ function showNotification(title, msg, type = 'default') {
     setTimeout(() => {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 450);
-    }, 3500);
+    }, 4000);
 }

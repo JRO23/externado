@@ -1,56 +1,52 @@
 /* ============================================
-   DASHBOARD.JS — User dashboard logic
+   DASHBOARD.JS — Panel de usuario con Supabase
    ============================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
-    const user = Auth.currentUser();
+document.addEventListener('DOMContentLoaded', async () => {
+    await Auth.init();
     updateNavAuth();
 
+    const user = Auth.currentUser();
     if (!user) {
         document.getElementById('page-gate').style.display = 'block';
         document.getElementById('dashboard-content').style.display = 'none';
     } else {
         document.getElementById('page-gate').style.display = 'none';
         document.getElementById('dashboard-content').style.display = 'block';
-        initDashboard(user);
+        await initDashboard(user);
     }
 });
 
-function onLoginSuccess(user) {
+async function onLoginSuccess(user) {
     document.getElementById('page-gate').style.display = 'none';
     document.getElementById('dashboard-content').style.display = 'block';
     updateNavAuth();
-    initDashboard(user);
+    await initDashboard(user);
 }
 
-function initDashboard(user) {
-    // Greeting
+async function initDashboard(user) {
     const hello = document.getElementById('dash-hello');
     if (hello) hello.innerHTML = `Hola, <span>${user.name}</span> 👋`;
-
-    renderKPIs(user);
-    renderOverviewRequests(user);
-    renderRequestsTable(user);
-    renderMyReports(user);
+    await renderKPIs(user);
+    await renderOverviewRequests(user);
+    await renderRequestsTable(user);
+    await renderMyReports(user);
     renderProfile(user);
 }
 
-/* ============================================
-   SWITCH PANELS
-   ============================================ */
+/* ---------- PANEL SWITCHING ---------- */
 function switchPanel(name) {
     document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
     document.getElementById('panel-' + name).classList.add('active');
-    document.getElementById('sb-' + name).classList.add('active');
+    const sb = document.getElementById('sb-' + name);
+    if (sb) sb.classList.add('active');
 }
 
-/* ============================================
-   KPIs
-   ============================================ */
-function renderKPIs(user) {
-    const requests = DB.getRequestsByUser(user.email);
-    const reports  = DB.getReports().filter(r => r.user === user.email);
+/* ---------- KPIs ---------- */
+async function renderKPIs(user) {
+    const requests = await DB.getRequestsByUser(user.email);
+    const reports  = (await DB.getReports()).filter(r => r.user === user.email);
 
     const pending  = requests.filter(r => r.status === 'pending').length;
     const accepted = requests.filter(r => r.status === 'accepted').length;
@@ -65,7 +61,7 @@ function renderKPIs(user) {
     ];
 
     const grid = document.getElementById('kpi-grid');
-    grid.innerHTML = kpis.map(k => `
+    if (grid) grid.innerHTML = kpis.map(k => `
         <div class="kpi-card">
             <div class="kpi-icon">${k.icon}</div>
             <div class="kpi-value">${k.value}</div>
@@ -73,13 +69,11 @@ function renderKPIs(user) {
         </div>`).join('');
 }
 
-/* ============================================
-   OVERVIEW REQUESTS
-   ============================================ */
-function renderOverviewRequests(user) {
+/* ---------- OVERVIEW ---------- */
+async function renderOverviewRequests(user) {
     const container = document.getElementById('overview-requests');
     if (!container) return;
-    const requests = DB.getRequestsByUser(user.email);
+    const requests = await DB.getRequestsByUser(user.email);
 
     if (requests.length === 0) {
         container.innerHTML = `
@@ -91,30 +85,26 @@ function renderOverviewRequests(user) {
         return;
     }
 
-    container.innerHTML = `
-        <div class="recent-requests">
-            ${requests.slice(0, 5).map(r => {
-                const s = statusInfo(r.status);
-                return `
-                <div class="req-item">
-                    <div class="req-item-icon">🛡️</div>
-                    <div class="req-item-info">
-                        <div class="req-item-route">${r.origin} → ${r.dest}</div>
-                        <div class="req-item-meta">🕐 ${r.time || '-'} &nbsp;|&nbsp; 👥 ${r.people} persona(s) &nbsp;|&nbsp; ${DB.timeAgo(r.createdAt)}</div>
-                    </div>
-                    <span class="status-badge ${s.cls}">${s.label}</span>
-                </div>`;
-            }).join('')}
-        </div>`;
+    container.innerHTML = `<div class="recent-requests">
+        ${requests.slice(0, 5).map(r => {
+            const s = statusInfo(r.status);
+            return `<div class="req-item">
+                <div class="req-item-icon">🛡️</div>
+                <div class="req-item-info">
+                    <div class="req-item-route">${r.origin} → ${r.dest}</div>
+                    <div class="req-item-meta">🕐 ${r.time || '-'} &nbsp;|&nbsp; 👥 ${r.people} persona(s) &nbsp;|&nbsp; ${DB.timeAgo(r.createdAt)}</div>
+                </div>
+                <span class="status-badge ${s.cls}">${s.label}</span>
+            </div>`;
+        }).join('')}
+    </div>`;
 }
 
-/* ============================================
-   REQUESTS TABLE
-   ============================================ */
-function renderRequestsTable(user) {
+/* ---------- REQUESTS TABLE ---------- */
+async function renderRequestsTable(user) {
     const tbody = document.getElementById('requests-tbody');
     if (!tbody) return;
-    const requests = DB.getRequestsByUser(user.email);
+    const requests = await DB.getRequestsByUser(user.email);
 
     if (requests.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><span class="icon">📭</span>Sin solicitudes</div></td></tr>`;
@@ -133,80 +123,67 @@ function renderRequestsTable(user) {
     }).join('');
 }
 
-/* ============================================
-   MY REPORTS
-   ============================================ */
-function renderMyReports(user) {
+/* ---------- MY REPORTS ---------- */
+async function renderMyReports(user) {
     const container = document.getElementById('my-reports-list');
     if (!container) return;
-    const reports = DB.getReports().filter(r => r.user === user.email);
+    const reports = (await DB.getReports()).filter(r => r.user === user.email);
 
     if (reports.length === 0) {
         container.innerHTML = `<div class="empty-state"><span class="icon">📭</span>Aún no has enviado reportes.<br><a href="index.html#reportes" class="btn-primary" style="margin-top:16px;display:inline-block;">Ir al Radar</a></div>`;
         return;
     }
 
-    const cls = r => DB.reportClass(r.type);
     container.innerHTML = `<div class="report-feed" style="max-height:none;">
-        ${reports.map(r => `
-        <div class="report-item ${cls(r)}">
-            <div class="report-header">
-                <span class="report-badge ${cls(r)}">${r.type}</span>
-                <span class="report-time">${DB.timeAgo(r.time)}</span>
-            </div>
-            <div class="report-location">📍 ${r.location}</div>
-            <div class="report-text">"${r.desc}"</div>
-        </div>`).join('')}
+        ${reports.map(r => {
+            const cls = DB.reportClass(r.type);
+            return `<div class="report-item ${cls}">
+                <div class="report-header">
+                    <span class="report-badge ${cls}">${r.type}</span>
+                    <span class="report-time">${DB.timeAgo(r.time)}</span>
+                </div>
+                <div class="report-location">📍 ${r.location}</div>
+                <div class="report-text">"${r.desc}"</div>
+            </div>`;
+        }).join('')}
     </div>`;
 }
 
-/* ============================================
-   PROFILE
-   ============================================ */
+/* ---------- PROFILE ---------- */
 function renderProfile(user) {
     const avatar = document.getElementById('profile-avatar');
     const info   = document.getElementById('profile-info');
     if (!avatar || !info) return;
 
-    const initials = (user.name[0] + (user.lastname[0] || '')).toUpperCase();
+    const initials = (user.name[0] + (user.lastname ? user.lastname[0] : '')).toUpperCase();
     avatar.textContent = initials;
 
     const roleLabel = { student: '🎓 Estudiante', staff: '👨‍🏫 Docente / Staff', admin: '🛡️ Administrador' };
     info.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:8px;">
-            <div><strong style="font-size:1.2rem;">${user.name} ${user.lastname}</strong></div>
+            <div><strong style="font-size:1.2rem;">${user.name} ${user.lastname || ''}</strong></div>
             <div style="color:var(--mid);font-size:0.85rem;">📧 ${user.email}</div>
             <div style="color:var(--mid);font-size:0.85rem;">${roleLabel[user.role] || user.role}</div>
-            <div style="color:var(--mid);font-size:0.78rem;">📅 Miembro desde ${new Date(user.joinedAt).toLocaleDateString('es-CO')}</div>
+            <div style="color:var(--mid);font-size:0.78rem;">📅 Miembro desde ${new Date(user.joined_at || user.joinedAt || Date.now()).toLocaleDateString('es-CO')}</div>
         </div>`;
 }
 
-function changePassword(e) {
+async function changePassword(e) {
     e.preventDefault();
-    const user = Auth.currentUser();
-    if (!user) return;
-    const currPass = document.getElementById('curr-pass').value;
-    const newPass  = document.getElementById('new-pass').value;
-    const msg      = document.getElementById('pass-msg');
+    const newPass = document.getElementById('new-pass').value;
+    const msg     = document.getElementById('pass-msg');
 
-    if (user.passwordHash !== btoa(currPass)) {
-        msg.textContent = 'La contraseña actual no es correcta.';
-        msg.style.display = 'block';
-        return;
-    }
     if (newPass.length < 6) {
         msg.textContent = 'La nueva contraseña debe tener al menos 6 caracteres.';
         msg.style.display = 'block';
         return;
     }
 
-    // Update in DB
-    const users = DB.getUsers();
-    const idx = users.findIndex(u => u.email === user.email);
-    if (idx !== -1) {
-        users[idx].passwordHash = btoa(newPass);
-        DB.saveUsers(users);
-        Auth.setSession(users[idx]);
+    const { error } = await supabase.auth.updateUser({ password: newPass });
+    if (error) {
+        msg.textContent = 'Error: ' + error.message;
+        msg.style.display = 'block';
+        return;
     }
 
     msg.style.display = 'none';
@@ -214,14 +191,12 @@ function changePassword(e) {
     showNotification('✅ Contraseña actualizada', 'Tu contraseña ha sido cambiada exitosamente.', 'success');
 }
 
-/* ============================================
-   ACCOMPANIMENT MODAL (Dashboard version)
-   ============================================ */
+/* ---------- REQUEST MODAL ---------- */
 function openRequestModal() {
     if (!Auth.isLoggedIn()) { openAuthModal(); return; }
     const user = Auth.currentUser();
     const nameInput = document.getElementById('req-name');
-    if (nameInput) nameInput.value = `${user.name} ${user.lastname}`;
+    if (nameInput && user) nameInput.value = `${user.name} ${user.lastname || ''}`.trim();
     document.getElementById('request-modal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
 }
@@ -231,10 +206,14 @@ function closeRequestModal() {
     document.body.style.overflow = '';
 }
 
-function submitRequest(e) {
+async function submitRequest(e) {
     e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.textContent = 'Enviando...';
+    btn.disabled = true;
+
     const user = Auth.currentUser();
-    const req = {
+    await DB.addRequest({
         name:      document.getElementById('req-name').value,
         origin:    document.getElementById('req-origin').value,
         dest:      document.getElementById('req-dest').value,
@@ -242,21 +221,21 @@ function submitRequest(e) {
         people:    document.getElementById('req-people').value,
         notes:     document.getElementById('req-notes').value,
         userEmail: user ? user.email : 'anonimo',
-    };
-    DB.addRequest(req);
+    });
+
     closeRequestModal();
     e.target.reset();
+    btn.textContent = 'Enviar Solicitud';
+    btn.disabled = false;
+
     showNotification('✅ Solicitud enviada', '¡Tu solicitud fue registrada exitosamente!', 'success');
 
-    // Refresh panels
-    renderKPIs(user);
-    renderOverviewRequests(user);
-    renderRequestsTable(user);
+    await renderKPIs(user);
+    await renderOverviewRequests(user);
+    await renderRequestsTable(user);
 }
 
-/* ============================================
-   HELPERS
-   ============================================ */
+/* ---------- HELPERS ---------- */
 function statusInfo(status) {
     const map = {
         pending:  { label: 'Pendiente',  cls: 'status-pending' },
@@ -267,7 +246,6 @@ function statusInfo(status) {
     return map[status] || map.pending;
 }
 
-// Close modals by clicking backdrop
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {

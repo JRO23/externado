@@ -1,23 +1,35 @@
 /* ============================================
-   APP.JS — Main page logic
+   APP.JS — Lógica de la página principal
    ============================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
-    updateNavAuth();
-    renderReports();
+document.addEventListener('DOMContentLoaded', async () => {
+    // Inicializar autenticación con Supabase
+    await Auth.init();
+
     renderRoutes();
-    renderRecentRequestsPreview();
+    await renderReports();
+    await renderRecentRequestsPreview();
     initSOS();
+    animateStats();
 });
 
 /* ============================================
-   REPORTS / INCIDENTS
+   REPORTES / INCIDENTES
    ============================================ */
-function renderReports() {
+async function renderReports() {
     const list = document.getElementById('report-list');
     if (!list) return;
-    const reports = DB.getReports();
+
+    list.innerHTML = `<div class="empty-state"><span class="icon">⏳</span>Cargando reportes...</div>`;
+
+    const reports = await DB.getReports();
     list.innerHTML = '';
+
+    if (reports.length === 0) {
+        list.innerHTML = `<div class="empty-state"><span class="icon">📭</span>Sin reportes recientes.</div>`;
+        return;
+    }
+
     reports.slice(0, 8).forEach(r => {
         const cls = DB.reportClass(r.type);
         list.innerHTML += `
@@ -42,20 +54,25 @@ function closeReportModal() {
     document.body.style.overflow = '';
 }
 
-function submitReport(e) {
+async function submitReport(e) {
     e.preventDefault();
-    const user = Auth.currentUser();
+    const btn  = e.target.querySelector('button[type="submit"]');
+    btn.textContent = 'Publicando...';
+    btn.disabled = true;
+
     const type     = document.getElementById('report-type').value;
     const location = document.getElementById('report-location').value;
     const desc     = document.getElementById('report-desc').value;
 
-    DB.addReport({ type, location, desc, time: Date.now(), user: user ? user.email : 'Anónimo' });
-    renderReports();
+    await DB.addReport({ type, location, desc });
+    await renderReports();
     closeReportModal();
     e.target.reset();
-    showNotification('✅ Reporte publicado', 'La comunidad ya puede ver tu alerta.', 'success');
 
-    // Animate new map alert
+    btn.textContent = 'Publicar Reporte';
+    btn.disabled = false;
+
+    showNotification('✅ Reporte publicado', 'La comunidad ya puede ver tu alerta.', 'success');
     addMapAlert();
 }
 
@@ -64,18 +81,16 @@ function addMapAlert() {
     if (!map) return;
     const dot = document.createElement('div');
     dot.className = 'map-point alert';
-    const top  = Math.floor(Math.random() * 60 + 15);
-    const left = Math.floor(Math.random() * 60 + 15);
-    dot.style.top  = top + '%';
-    dot.style.left = left + '%';
-    dot.innerHTML = '<span class="map-label">NUEVO</span>';
-    dot.onclick = () => showNotification('🚨 ALERTA', 'Nuevo incidente reportado.');
+    dot.style.top  = Math.floor(Math.random() * 60 + 15) + '%';
+    dot.style.left = Math.floor(Math.random() * 60 + 15) + '%';
+    dot.innerHTML  = '<span class="map-label">NUEVO</span>';
+    dot.onclick    = () => showNotification('🚨 ALERTA', 'Nuevo incidente reportado.');
     map.appendChild(dot);
     setTimeout(() => dot.remove(), 12000);
 }
 
 /* ============================================
-   ROUTES — Caravanas
+   RUTAS — Caravanas
    ============================================ */
 function renderRoutes() {
     const grid = document.getElementById('routes-grid');
@@ -85,10 +100,10 @@ function renderRoutes() {
     routes.forEach(route => {
         const pct = Math.round((route.current / route.max) * 100);
         const fillClass = pct >= 90 ? 'full' : pct >= 60 ? 'medium' : '';
-        const isFull = route.current >= route.max;
+        const isFull    = route.current >= route.max;
         grid.innerHTML += `
             <div class="route-card">
-                <div class="route-card-header" style="background:${route.color}; color:${route.textColor};">
+                <div class="route-card-header" style="background:${route.color};color:${route.textColor};">
                     ${route.station}
                 </div>
                 <div class="route-card-body">
@@ -101,11 +116,10 @@ function renderRoutes() {
                     <div class="capacity-bar">
                         <div class="capacity-fill ${fillClass}" style="width:${pct}%;"></div>
                     </div>
-                    <button
-                        onclick="joinRoute(${route.id})"
-                        class="btn-primary w-full"
-                        ${isFull ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}
-                    >${isFull ? '🔒 Cupo lleno' : '🚶 Unirse a la ruta'}</button>
+                    <button onclick="joinRoute(${route.id})" class="btn-primary w-full"
+                        ${isFull ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
+                        ${isFull ? '🔒 Cupo lleno' : '🚶 Unirse a la ruta'}
+                    </button>
                 </div>
             </div>`;
     });
@@ -122,7 +136,7 @@ function joinRoute(id) {
 }
 
 /* ============================================
-   REQUEST ACCOMPANIMENT
+   SOLICITAR ACOMPAÑAMIENTO
    ============================================ */
 function openRequestModal() {
     if (!Auth.isLoggedIn()) {
@@ -132,7 +146,7 @@ function openRequestModal() {
     }
     const user = Auth.currentUser();
     const nameInput = document.getElementById('req-name');
-    if (nameInput) nameInput.value = `${user.name} ${user.lastname}`;
+    if (nameInput && user) nameInput.value = `${user.name} ${user.lastname || ''}`.trim();
     document.getElementById('request-modal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
 }
@@ -142,10 +156,14 @@ function closeRequestModal() {
     document.body.style.overflow = '';
 }
 
-function submitRequest(e) {
+async function submitRequest(e) {
     e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.textContent = 'Enviando...';
+    btn.disabled = true;
+
     const user = Auth.currentUser();
-    const req = {
+    await DB.addRequest({
         name:      document.getElementById('req-name').value,
         origin:    document.getElementById('req-origin').value,
         dest:      document.getElementById('req-dest').value,
@@ -153,33 +171,36 @@ function submitRequest(e) {
         people:    document.getElementById('req-people').value,
         notes:     document.getElementById('req-notes').value,
         userEmail: user ? user.email : 'anonimo',
-    };
-    DB.addRequest(req);
+    });
+
     closeRequestModal();
     e.target.reset();
-    showNotification('✅ Solicitud enviada', 'Revisaremos tu solicitud pronto. ¡Estás en buenas manos!', 'success');
-    renderRecentRequestsPreview();
+    btn.textContent = 'Enviar Solicitud';
+    btn.disabled = false;
+
+    showNotification('✅ Solicitud enviada', '¡Estás en buenas manos! Revisaremos tu solicitud pronto.', 'success');
+    await renderRecentRequestsPreview();
 }
 
-function renderRecentRequestsPreview() {
-    const user = Auth.currentUser();
+async function renderRecentRequestsPreview() {
+    const user    = Auth.currentUser();
     const section = document.getElementById('mis-solicitudes-preview');
-    const list = document.getElementById('recent-requests-list');
+    const list    = document.getElementById('recent-requests-list');
     if (!section || !list) return;
-
     if (!user) { section.style.display = 'none'; return; }
-    const requests = DB.getRequestsByUser(user.email);
+
+    const requests = await DB.getRequestsByUser(user.email);
     if (requests.length === 0) { section.style.display = 'none'; return; }
 
     section.style.display = 'block';
     list.innerHTML = '';
+    const statusMap = {
+        pending:  { label: 'Pendiente', cls: 'status-pending' },
+        accepted: { label: 'Aceptada',  cls: 'status-accepted' },
+        finished: { label: 'Finalizada',cls: 'status-finished' },
+        rejected: { label: 'Rechazada', cls: 'status-rejected' },
+    };
     requests.slice(0, 3).forEach(r => {
-        const statusMap = {
-            pending:  { label: 'Pendiente', cls: 'status-pending' },
-            accepted: { label: 'Aceptada',  cls: 'status-accepted' },
-            finished: { label: 'Finalizada',cls: 'status-finished' },
-            rejected: { label: 'Rechazada', cls: 'status-rejected' },
-        };
         const s = statusMap[r.status] || statusMap.pending;
         list.innerHTML += `
             <div class="req-item">
@@ -193,21 +214,20 @@ function renderRecentRequestsPreview() {
     });
 }
 
-// Called after login to refresh the UI
-function onLoginSuccess(user) {
-    renderRecentRequestsPreview();
+// Hook post-login
+async function onLoginSuccess(user) {
+    await renderRecentRequestsPreview();
     updateNavAuth();
 }
 
 /* ============================================
-   SOS BUTTON
+   SOS
    ============================================ */
 function initSOS() {
     const sosBtn     = document.getElementById('sos-btn');
     const sosOverlay = document.getElementById('sos-overlay');
     const sosCancel  = document.getElementById('sos-cancel');
     const sosTimer   = document.getElementById('sos-timer');
-
     if (!sosBtn || !sosOverlay) return;
 
     let countdown = null;
@@ -238,7 +258,7 @@ function initSOS() {
 }
 
 /* ============================================
-   CLOSE MODALS BY CLICKING BACKDROP
+   CERRAR MODALES AL HACER CLICK EN FONDO
    ============================================ */
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', (e) => {
@@ -250,13 +270,13 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 });
 
 /* ============================================
-   ANIMATED LIVE STATS
+   CONTADOR ANIMADO EN HERO
    ============================================ */
-(function animateStats() {
-    function count(el, end, start = 0) {
+function animateStats() {
+    function count(el, end) {
         if (!el) return;
-        let cur = start;
-        const step = Math.ceil((end - start) / 40);
+        let cur = 0;
+        const step = Math.ceil(end / 40);
         const t = setInterval(() => {
             cur = Math.min(cur + step, end);
             el.textContent = cur;
@@ -266,4 +286,4 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     count(document.getElementById('stat-users'),   247);
     count(document.getElementById('stat-reports'),  58);
     count(document.getElementById('stat-routes'),   12);
-})();
+}
