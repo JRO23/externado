@@ -1,0 +1,18 @@
+/* ============================================
+   DASHBOARD.CSS — Extra dashboard styles
+   ============================================ */
+
+.dash-panel { animation: fade-in 0.25s ease; }
+
+@media (max-width: 768px) {
+    .sidebar-link .label { display: none; }
+    .sidebar-link { padding: 10px 12px; border-radius: 50% !important; width: 44px; height: 44px; justify-content: center; }
+    .sidebar-link .icon { width: auto; }
+    .sidebar-title { display: none; }
+    .sidebar {
+        flex-direction: row;
+        justify-content: center;
+        padding: 12px;
+        gap: 8px;
+    }
+}

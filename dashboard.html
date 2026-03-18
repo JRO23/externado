@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Panel — Externado Move</title>
+    <meta name="description" content="Panel de usuario de Externado Move. Gestiona tus solicitudes de acompañamiento.">
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+    <div id="notification-host"></div>
+
+    <!-- Auth modal (reused) -->
+    <div id="auth-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeAuthModal()">✕</button>
+            <div class="modal-tabs">
+                <button class="modal-tab active" id="tab-login" onclick="switchTab('login')">Iniciar Sesión</button>
+                <button class="modal-tab" id="tab-register" onclick="switchTab('register')">Registrarse</button>
+            </div>
+            <form id="form-login" class="auth-form" onsubmit="handleLogin(event)">
+                <h2 class="auth-title">Inicia sesión</h2>
+                <div class="form-group"><label>Correo</label><input type="email" id="login-email" placeholder="tu@correo.edu.co" required></div>
+                <div class="form-group"><label>Contraseña</label><input type="password" id="login-pass" placeholder="••••••••" required></div>
+                <div id="login-error" class="form-error" style="display:none;"></div>
+                <button type="submit" class="btn-primary w-full">Entrar</button>
+            </form>
+            <form id="form-register" class="auth-form" style="display:none;" onsubmit="handleRegister(event)">
+                <h2 class="auth-title">Crea tu cuenta</h2>
+                <div class="form-row">
+                    <div class="form-group"><label>Nombre</label><input type="text" id="reg-name" required></div>
+                    <div class="form-group"><label>Apellido</label><input type="text" id="reg-lastname" required></div>
+                </div>
+                <div class="form-group"><label>Correo</label><input type="email" id="reg-email" required></div>
+                <div class="form-group"><label>Contraseña</label><input type="password" id="reg-pass" minlength="6" required></div>
+                <div class="form-group"><label>Tipo</label><select id="reg-role"><option value="student">Estudiante</option><option value="staff">Docente / Staff</option></select></div>
+                <div id="reg-error" class="form-error" style="display:none;"></div>
+                <button type="submit" class="btn-primary w-full">Crear cuenta</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Request modal (reused) -->
+    <div id="request-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeRequestModal()">✕</button>
+            <h2 class="auth-title">🤝 Nueva Solicitud</h2>
+            <form id="request-form" onsubmit="submitRequest(event)" class="auth-form">
+                <div class="form-group"><label>Nombre</label><input type="text" id="req-name" required></div>
+                <div class="form-group"><label>📍 Origen</label><input type="text" id="req-origin" placeholder="Ej: Entrada principal" required></div>
+                <div class="form-group"><label>🏁 Destino</label><input type="text" id="req-dest" placeholder="Ej: Estación Las Aguas" required></div>
+                <div class="form-group"><label>🕐 Hora de salida</label><input type="time" id="req-time" required></div>
+                <div class="form-group"><label>Personas</label>
+                    <select id="req-people">
+                        <option value="1">Solo yo (1)</option>
+                        <option value="2">2 personas</option>
+                        <option value="3">3 personas</option>
+                        <option value="4+">4 o más</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Notas (opcional)</label><textarea id="req-notes" rows="2" placeholder="Información adicional..."></textarea></div>
+                <button type="submit" class="btn-primary w-full">Enviar Solicitud</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== NAV ===== -->
+    <nav id="main-nav">
+        <div class="nav-brand">
+            <a href="index.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+                <span class="nav-logo">🤝</span>
+                <span class="nav-title">EXTERNADO MOVE</span>
+            </a>
+        </div>
+        <div class="nav-links">
+            <a href="index.html#reportes" class="nav-link">Radar</a>
+            <a href="index.html#caravanas" class="nav-link">Rutas</a>
+            <a href="index.html#solicitar" class="nav-link">Acompañamiento</a>
+        </div>
+        <div class="nav-actions">
+            <a href="index.html" class="btn-secondary" style="padding:8px 18px;font-size:0.8rem;">← Inicio</a>
+            <div id="nav-auth-zone"></div>
+            <button class="nav-hamburger" id="hamburger" onclick="toggleMobileMenu()">☰</button>
+        </div>
+    </nav>
+    <div class="mobile-menu" id="mobile-menu">
+        <a href="index.html#reportes" onclick="closeMobileMenu()">Radar de Incidencias</a>
+        <a href="index.html#caravanas" onclick="closeMobileMenu()">Rutas Disponibles</a>
+        <a href="index.html#solicitar" onclick="closeMobileMenu()">Solicitar Acompañamiento</a>
+    </div>
+
+    <!-- ===== GATING ===== -->
+    <div id="page-gate" style="display:none;">
+        <div class="access-denied">
+            <div class="icon">🔐</div>
+            <h2>Acceso restringido</h2>
+            <p>Debes iniciar sesión para ver tu panel personal.</p>
+            <button onclick="openAuthModal()" class="btn-primary" style="margin-top:16px;">Iniciar sesión</button>
+        </div>
+    </div>
+
+    <!-- ===== DASHBOARD ===== -->
+    <div id="dashboard-content" style="display:none;">
+        <div class="dashboard-layout">
+
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <span class="sidebar-title">Principal</span>
+                <button class="sidebar-link active" id="sb-overview" onclick="switchPanel('overview')">
+                    <span class="icon">📊</span><span class="label">Resumen</span>
+                </button>
+                <button class="sidebar-link" id="sb-requests" onclick="switchPanel('requests')">
+                    <span class="icon">🛡️</span><span class="label">Mis Solicitudes</span>
+                </button>
+                <button class="sidebar-link" id="sb-reports" onclick="switchPanel('reports')">
+                    <span class="icon">🚨</span><span class="label">Mis Reportes</span>
+                </button>
+                <span class="sidebar-title">Cuenta</span>
+                <button class="sidebar-link" id="sb-profile" onclick="switchPanel('profile')">
+                    <span class="icon">👤</span><span class="label">Mi Perfil</span>
+                </button>
+                <button class="sidebar-link" onclick="Auth.logout()" style="margin-top:auto;">
+                    <span class="icon">🚪</span><span class="label">Cerrar sesión</span>
+                </button>
+            </aside>
+
+            <!-- Main -->
+            <main class="dash-main">
+                <div class="dash-greeting">
+                    <div>
+                        <h1 id="dash-hello">Hola, <span>Usuario</span> 👋</h1>
+                        <p style="color:var(--mid);font-size:0.85rem;">Panel de control — Externado Move</p>
+                    </div>
+                    <button onclick="openRequestModal()" class="btn-primary">+ Nueva Solicitud</button>
+                </div>
+
+                <!-- OVERVIEW PANEL -->
+                <div class="dash-panel active" id="panel-overview">
+                    <div class="kpi-grid" id="kpi-grid">
+                        <!-- Injected by JS -->
+                    </div>
+                    <div class="dash-section-title">📋 Solicitudes Recientes</div>
+                    <div id="overview-requests"></div>
+                </div>
+
+                <!-- REQUESTS PANEL -->
+                <div class="dash-panel" id="panel-requests">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                        <div class="dash-section-title" style="margin:0;">Todas mis Solicitudes</div>
+                        <button onclick="openRequestModal()" class="btn-outline-sm">+ Nueva</button>
+                    </div>
+                    <div class="requests-table-wrap">
+                        <table class="requests-table" id="requests-table">
+                            <thead>
+                                <tr>
+                                    <th>Ruta</th>
+                                    <th>Hora</th>
+                                    <th>Personas</th>
+                                    <th>Notas</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="requests-tbody">
+                                <tr><td colspan="5" class="empty-state"><span class="icon">📭</span>Sin solicitudes aún</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- REPORTS PANEL -->
+                <div class="dash-panel" id="panel-reports">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                        <div class="dash-section-title" style="margin:0;">Mis Reportes</div>
+                        <a href="index.html#reportes" class="btn-outline-sm">+ Nuevo</a>
+                    </div>
+                    <div id="my-reports-list">
+                        <div class="empty-state"><span class="icon">📭</span>Aún no has enviado reportes.</div>
+                    </div>
+                </div>
+
+                <!-- PROFILE PANEL -->
+                <div class="dash-panel" id="panel-profile">
+                    <div class="dash-section-title">Mi Perfil</div>
+                    <div class="profile-card">
+                        <div class="profile-avatar-big" id="profile-avatar">?</div>
+                        <div id="profile-info"></div>
+                        <hr style="margin: 20px 0; border-color: var(--gray-200);">
+                        <h3 style="font-family:'Bungee',cursive;font-size:0.9rem;margin-bottom:14px;">Cambiar contraseña</h3>
+                        <form onsubmit="changePassword(event)" class="auth-form">
+                            <div class="form-group">
+                                <label>Contraseña actual</label>
+                                <input type="password" id="curr-pass" placeholder="••••••••">
+                            </div>
+                            <div class="form-group">
+                                <label>Nueva contraseña</label>
+                                <input type="password" id="new-pass" placeholder="Mínimo 6 caracteres" minlength="6">
+                            </div>
+                            <div id="pass-msg" style="display:none;" class="form-error"></div>
+                            <button type="submit" class="btn-primary" style="margin-top:6px;">Actualizar contraseña</button>
+                        </form>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

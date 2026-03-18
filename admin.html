@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel — Externado Move</title>
+    <meta name="description" content="Panel de administración de Externado Move.">
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <div id="notification-host"></div>
+
+    <!-- Auth modal -->
+    <div id="auth-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeAuthModal()">✕</button>
+            <div class="modal-tabs">
+                <button class="modal-tab active" id="tab-login" onclick="switchTab('login')">Iniciar Sesión</button>
+                <button class="modal-tab" id="tab-register" onclick="switchTab('register')">Registrarse</button>
+            </div>
+            <form id="form-login" class="auth-form" onsubmit="handleLogin(event)">
+                <h2 class="auth-title">Panel Admin</h2>
+                <div class="form-group"><label>Correo</label><input type="email" id="login-email" placeholder="admin@externado.edu.co" required></div>
+                <div class="form-group"><label>Contraseña</label><input type="password" id="login-pass" placeholder="••••••••" required></div>
+                <div id="login-error" class="form-error" style="display:none;"></div>
+                <button type="submit" class="btn-primary w-full">Entrar como Admin</button>
+            </form>
+            <form id="form-register" class="auth-form" style="display:none;" onsubmit="handleRegister(event)">
+                <h2 class="auth-title">Crea tu cuenta</h2>
+                <div class="form-row">
+                    <div class="form-group"><label>Nombre</label><input type="text" id="reg-name" required></div>
+                    <div class="form-group"><label>Apellido</label><input type="text" id="reg-lastname" required></div>
+                </div>
+                <div class="form-group"><label>Correo</label><input type="email" id="reg-email" required></div>
+                <div class="form-group"><label>Contraseña</label><input type="password" id="reg-pass" minlength="6" required></div>
+                <div class="form-group"><label>Tipo</label><select id="reg-role"><option value="student">Estudiante</option><option value="staff">Docente</option></select></div>
+                <div id="reg-error" class="form-error" style="display:none;"></div>
+                <button type="submit" class="btn-primary w-full">Crear cuenta</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin top bar -->
+    <div class="admin-header-bar">
+        <span>🛡️</span>
+        <span class="admin-badge">ADMIN</span>
+        <span>Panel de Administración — Externado Move</span>
+        <div style="margin-left:auto;display:flex;gap:12px;align-items:center;">
+            <a href="index.html" style="opacity:0.7;font-size:0.78rem;color:white;">← Volver al sitio</a>
+            <button onclick="Auth.logout()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:5px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-size:0.78rem;">Salir</button>
+        </div>
+    </div>
+
+    <!-- NAV -->
+    <nav id="main-nav" style="position:relative;top:auto;">
+        <div class="nav-brand">
+            <span class="nav-logo">🛡️</span>
+            <span class="nav-title" style="color:var(--dark-2);">ADMIN PANEL</span>
+        </div>
+        <div class="nav-links">
+            <button class="nav-link" onclick="switchAdminPanel('requests')" id="anav-requests">Solicitudes</button>
+            <button class="nav-link" onclick="switchAdminPanel('reports')" id="anav-reports">Reportes</button>
+            <button class="nav-link" onclick="switchAdminPanel('users')" id="anav-users">Usuarios</button>
+            <button class="nav-link" onclick="switchAdminPanel('routes')" id="anav-routes">Rutas</button>
+        </div>
+        <div class="nav-actions">
+            <div id="nav-auth-zone"></div>
+        </div>
+    </nav>
+
+    <!-- ACCESS DENIED -->
+    <div id="page-gate" style="display:none;">
+        <div class="access-denied">
+            <div class="icon">🚫</div>
+            <h2>Acceso de Administrador</h2>
+            <p>Esta área es exclusiva para administradores del sistema.</p>
+            <p style="margin-top:8px;font-size:0.8rem;color:var(--mid);">Usa: admin@externado.edu.co / admin123</p>
+            <button onclick="openAuthModal()" class="btn-primary" style="margin-top:16px;">Iniciar sesión como Admin</button>
+            <a href="index.html" class="btn-ghost" style="margin-top:8px;display:block;">← Volver al inicio</a>
+        </div>
+    </div>
+
+    <!-- ADMIN CONTENT -->
+    <div id="admin-content" style="display:none; padding:32px 24px; max-width:1280px; margin:0 auto;">
+
+        <!-- STATS BAR -->
+        <div class="kpi-grid" id="admin-kpi" style="margin-bottom:32px;"></div>
+
+        <!-- REQUESTS PANEL -->
+        <div class="admin-panel" id="apanel-requests">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+                <div class="dash-section-title" style="margin:0;">📋 Solicitudes de Acompañamiento</div>
+                <div style="display:flex;gap:8px;">
+                    <select id="filter-status" onchange="renderAdminRequests()" style="padding:6px 12px;border:2px solid var(--gray-200);border-radius:var(--radius-sm);font-weight:600;font-size:0.8rem;outline:none;">
+                        <option value="all">Todos los estados</option>
+                        <option value="pending">Pendientes</option>
+                        <option value="accepted">Aceptadas</option>
+                        <option value="finished">Finalizadas</option>
+                        <option value="rejected">Rechazadas</option>
+                    </select>
+                </div>
+            </div>
+            <div class="requests-table-wrap">
+                <table class="requests-table">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Ruta</th>
+                            <th>Hora</th>
+                            <th>Personas</th>
+                            <th>Notas</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-requests-tbody">
+                        <tr><td colspan="7"><div class="empty-state"><span class="icon">⏳</span>Cargando...</div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- REPORTS PANEL -->
+        <div class="admin-panel" id="apanel-reports" style="display:none;">
+            <div class="dash-section-title">🚨 Todos los Reportes</div>
+            <div class="report-feed" id="admin-reports-feed" style="max-height:none;"></div>
+        </div>
+
+        <!-- USERS PANEL -->
+        <div class="admin-panel" id="apanel-users" style="display:none;">
+            <div class="dash-section-title">👥 Usuarios Registrados</div>
+            <div class="requests-table-wrap">
+                <table class="requests-table">
+                    <thead>
+                        <tr><th>#</th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Miembro desde</th></tr>
+                    </thead>
+                    <tbody id="admin-users-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ROUTES PANEL -->
+        <div class="admin-panel" id="apanel-routes" style="display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+                <div class="dash-section-title" style="margin:0;">🚶 Gestión de Rutas</div>
+                <button onclick="addNewRoute()" class="btn-primary" style="padding:10px 20px;font-size:0.8rem;">+ Agregar Ruta</button>
+            </div>
+            <div class="routes-grid" id="admin-routes-grid"></div>
+        </div>
+
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>
