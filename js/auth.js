@@ -53,19 +53,33 @@ const Auth = {
 
         if (error) {
             // Traducir errores comunes
-            if (error.message.includes('already registered')) {
+            if (error.message.includes('already registered') || error.message.includes('already been registered')) {
                 return { ok: false, msg: 'Este correo ya está registrado.' };
             }
-            if (error.message.includes('Password')) {
+            if (error.message.includes('Password') || error.message.includes('password')) {
                 return { ok: false, msg: 'La contraseña debe tener al menos 6 caracteres.' };
+            }
+            if (error.message.includes('valid email')) {
+                return { ok: false, msg: 'Por favor ingresa un correo válido.' };
             }
             return { ok: false, msg: error.message };
         }
 
         const user = data.user;
-        if (!user) return { ok: false, msg: 'No se pudo crear el usuario.' };
+        if (!user) return { ok: false, msg: 'No se pudo crear el usuario. Intenta de nuevo.' };
 
-        // 2. Guardar perfil en tabla profiles
+        // 2. Verificar si necesita confirmación de email
+        // Si la sesión es null, Supabase envió un correo de confirmación
+        if (!data.session) {
+            return {
+                ok: true,
+                needsConfirmation: true,
+                msg: '¡Cuenta creada! Revisa tu correo y confirma tu email para poder iniciar sesión.',
+                user: { name, lastname, email: email.trim().toLowerCase(), role: role || 'student' }
+            };
+        }
+
+        // 3. Si hay sesión activa (autoconfirm enabled), guardar perfil
         const { error: profileError } = await supabase
             .from('profiles')
             .insert({
@@ -80,7 +94,7 @@ const Auth = {
             console.warn('Error guardando perfil:', profileError.message);
         }
 
-        // 3. Cargar sesión y perfil en memoria
+        // 4. Cargar sesión y perfil en memoria
         this._session = data.session;
         this._profile = {
             id:       user.id,
@@ -91,9 +105,7 @@ const Auth = {
             joinedAt: new Date().toISOString(),
         };
 
-        // Guardar en localStorage como caché rápido
         localStorage.setItem('em_profile', JSON.stringify(this._profile));
-
         return { ok: true, user: this._profile };
     },
 
@@ -289,6 +301,13 @@ async function handleRegister(e) {
     if (!result.ok) {
         errEl.textContent = result.msg;
         errEl.style.display = 'block';
+        return;
+    }
+
+    // Caso: requiere confirmación de email
+    if (result.needsConfirmation) {
+        closeAuthModal();
+        showNotification('📧 Confirma tu email', result.msg, 'success');
         return;
     }
 
