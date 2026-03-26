@@ -105,7 +105,7 @@ const Auth = {
         });
 
         if (error) {
-            if (error.message.includes('Invalid login')) {
+            if (error.message.includes('Invalid login') || error.message.includes('invalid_credentials')) {
                 return { ok: false, msg: 'Correo o contraseña incorrectos.' };
             }
             return { ok: false, msg: error.message };
@@ -128,7 +128,15 @@ const Auth = {
                 joinedAt: data.user.created_at,
             };
             // Insertar perfil faltante
-            await supabase.from('profiles').upsert(this._profile);
+            await supabase.from('profiles').upsert({
+                id:       this._profile.id,
+                name:     this._profile.name,
+                lastname: this._profile.lastname,
+                email:    this._profile.email,
+                role:     this._profile.role,
+            });
+        } else {
+            this._profile = profile;
         }
 
         localStorage.setItem('em_profile', JSON.stringify(this._profile));
@@ -148,13 +156,19 @@ const Auth = {
     /* ---------- INICIALIZACIÓN ---------- */
     // Llamar al cargar cada página para restaurar sesión
     async init() {
-        // Intentar restaurar desde caché mientras carga Supabase
+        // 1. Mostrar botón ingresar de inmediato (sin esperar Supabase)
+        updateNavAuth();
+
+        // 2. Intentar restaurar desde caché mientras carga Supabase
         const cached = localStorage.getItem('em_profile');
         if (cached) {
-            try { this._profile = JSON.parse(cached); } catch {}
+            try {
+                this._profile = JSON.parse(cached);
+                updateNavAuth(); // actualizar con datos cacheados
+            } catch {}
         }
 
-        // Verificar sesión real con Supabase
+        // 3. Verificar sesión real con Supabase
         const { data } = await supabase.auth.getSession();
         this._session = data.session;
 
@@ -165,28 +179,33 @@ const Auth = {
                 localStorage.setItem('em_profile', JSON.stringify(profile));
             }
         } else {
+            // No hay sesión activa — limpiar caché
             this._profile = null;
+            this._session = null;
             localStorage.removeItem('em_profile');
         }
 
-        // Escuchar cambios de sesión en tiempo real
+        // 4. Actualizar nav con estado real
+        updateNavAuth();
+
+        // 5. Escuchar cambios de sesión en tiempo real
         supabase.auth.onAuthStateChange(async (event, session) => {
             this._session = session;
             if (event === 'SIGNED_OUT') {
                 this._profile = null;
                 localStorage.removeItem('em_profile');
+                updateNavAuth();
             }
             if (event === 'SIGNED_IN' && session) {
                 const profile = await this.getProfile(session.user.id);
                 if (profile) {
                     this._profile = profile;
                     localStorage.setItem('em_profile', JSON.stringify(profile));
+                    updateNavAuth();
                 }
             }
-            updateNavAuth();
         });
 
-        updateNavAuth();
         return this._profile;
     },
 
@@ -287,7 +306,9 @@ function updateNavAuth() {
         zone.innerHTML = `<button class="btn-login-nav" onclick="openAuthModal()">Ingresar</button>`;
         return;
     }
-    const initials = (user.name[0] + (user.lastname ? user.lastname[0] : '')).toUpperCase();
+    const firstName  = (user.name    || 'U').charAt(0).toUpperCase();
+    const firstLast  = (user.lastname || '').charAt(0).toUpperCase();
+    const initials   = firstName + firstLast;
     zone.innerHTML = `
         <div class="nav-user" id="nav-user-btn" onclick="toggleUserMenu()">
             <div class="nav-avatar">${initials}</div>
