@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await Auth.init();
 
     renderRoutes();
+    renderTicker();
+    renderActivityFeed();
+    renderRouteStatusList();
     await renderReports();
     await renderRecentRequestsPreview();
     initSOS();
@@ -130,11 +133,154 @@ function joinRoute(id) {
     const success = DB.joinRoute(id);
     if (success) {
         renderRoutes();
+        renderRouteStatusList();
+        // Push live notification
+        const routes = DB.getRoutes();
+        const route  = routes.find(r => r.id === id);
+        if (route) pushActivityNotif({
+            type:    'joined',
+            icon:    '🚶',
+            route:   route.name,
+            detail:  `Una persona se unió a la caravana hacia ${route.station}. Cupos restantes: ${route.max - route.current}`,
+            time:    Date.now(),
+        });
         showNotification('🚶 ¡Unido!', 'Te has unido a la ruta. ¡Nos vemos en la entrada!', 'success');
     } else {
         showNotification('🔒 Sin cupo', 'Esta ruta ya está llena. Elige otra.', 'warning');
     }
 }
+
+/* ============================================
+   TICKER — BARRA DE ACTIVIDAD SUPERIOR
+   ============================================ */
+function renderTicker() {
+    const inner = document.getElementById('ticker-inner');
+    if (!inner) return;
+
+    const routes = DB.getRoutes();
+    const msgs = [
+        ...routes.map(r => {
+            const pct = Math.round((r.current / r.max) * 100);
+            return `🚶 <strong>${r.current} personas</strong> en caravana → ${r.station} · Salida ${r.time}`;
+        }),
+        '⚡ Más de <strong>247 usuarios</strong> activos en la plataforma hoy',
+        '🔒 Recuerda activar el botón <strong>SOS</strong> en caso de emergencia',
+        '🤝 ¿Necesitas escolta? Solicita acompañamiento personalizado',
+        '📡 El radar de incidencias se actualiza en tiempo real',
+    ];
+
+    // Duplicar para scroll infinito
+    const allMsgs = [...msgs, ...msgs];
+    inner.innerHTML = allMsgs.map(m =>
+        `<span class="ticker-item"><span class="ticker-dot"></span>${m}</span>`
+    ).join('');
+}
+
+/* ============================================
+   SECCIÓN ACTIVIDAD EN VIVO
+   ============================================ */
+
+// Buffer de notificaciones en memoria
+const _activityLog = [];
+
+function _timeLabel(ts) {
+    const diff = Math.floor((Date.now() - ts) / 1000);
+    if (diff < 60)   return 'AHORA';
+    if (diff < 3600) return `HACE ${Math.floor(diff/60)} MIN`;
+    return `HACE ${Math.floor(diff/3600)} H`;
+}
+
+function pushActivityNotif(notif) {
+    _activityLog.unshift(notif);
+    renderActivityFeed();
+    renderRouteStatusList();
+}
+
+function renderActivityFeed() {
+    const list   = document.getElementById('activity-list');
+    const count  = document.getElementById('activity-count');
+    if (!list) return;
+
+    const routes = DB.getRoutes();
+
+    // Generar notificaciones de ejemplo si el log está vacío
+    if (_activityLog.length === 0) {
+        const now = Date.now();
+        const m   = 60 * 1000;
+        const seed = [
+            { type:'joined', icon:'🚶', route: routes[0]?.name || 'Ruta 1',
+              detail: `3 personas se unieron. Cupos restantes: ${routes[0] ? routes[0].max - routes[0].current : 6}`,
+              time: now - 2*m },
+            { type:'joined', icon:'🚶', route: routes[3]?.name || 'Ruta 4',
+              detail: `1 persona se unió a la caravana hacia ${routes[3]?.station || 'La Candelaria'}.`,
+              time: now - 7*m },
+            { type:'joined', icon:'🚶', route: routes[6]?.name || 'Ruta 7',
+              detail: `2 personas confirmaron su lugar hacia ${routes[6]?.station || 'Centro Internacional'}.`,
+              time: now - 12*m },
+            { type:'full',   icon:'🔒', route: routes[2]?.name || 'Ruta 3',
+              detail: `Cupo completo en la caravana a ${routes[2]?.station || 'San Victorino'}. Salida en ${routes[2]?.time || '5:30 PM'}.`,
+              time: now - 18*m },
+            { type:'joined', icon:'🚶', route: routes[1]?.name || 'Ruta 2',
+              detail: `4 personas ya están listas para la salida hacia ${routes[1]?.station || 'Av. Jiménez'}.`,
+              time: now - 25*m },
+            { type:'joined', icon:'🚶', route: routes[4]?.name || 'Ruta 5',
+              detail: `Caravana al ${routes[4]?.station || 'Portal El Dorado'} con 7 confirmados. Únete antes de las ${routes[4]?.time || '6:00 PM'}.`,
+              time: now - 34*m },
+            { type:'joined', icon:'🚶', route: routes[7]?.name || 'Ruta 8',
+              detail: `Nuevo grupo formado hacia ${routes[7]?.station || 'Museo Nacional'}. Solo 8 cupos disponibles.`,
+              time: now - 41*m },
+            { type:'joined', icon:'🚶', route: routes[5]?.name || 'Ruta 6',
+              detail: `Caravana nocturna a ${routes[5]?.station || 'Chapinero'} confirmada. Salen desde la puerta principal.`,
+              time: now - 55*m },
+            { type:'full',   icon:'🔒', route: routes[8]?.name || 'Ruta 9',
+              detail: `¡Cupo lleno! La caravana al ${routes[8]?.station || 'Terminal del Sur'} ya no tiene plazas.`,
+              time: now - 68*m },
+            { type:'joined', icon:'🚶', route: routes[9]?.name || 'Ruta 10',
+              detail: `Primera persona confirmada en la caravana a ${routes[9]?.station || 'Calle 100'}. ¡Únete tú también!`,
+              time: now - 80*m },
+        ];
+        seed.forEach(s => _activityLog.push(s));
+    }
+
+    list.innerHTML = _activityLog.map(n => `
+        <div class="activity-notif ${n.type}">
+            <span class="notif-icon">${n.icon}</span>
+            <div class="notif-body">
+                <div class="notif-route">${n.route}</div>
+                <div class="notif-detail">${n.detail}</div>
+            </div>
+            <span class="notif-time">${_timeLabel(n.time)}</span>
+        </div>
+    `).join('');
+
+    if (count) count.textContent = `${_activityLog.length} evento${_activityLog.length !== 1 ? 's' : ''}`;
+}
+
+function renderRouteStatusList() {
+    const container = document.getElementById('route-status-list');
+    if (!container) return;
+
+    const routes = DB.getRoutes();
+    container.innerHTML = routes.map(r => {
+        const pct      = Math.round((r.current / r.max) * 100);
+        const fillCls  = pct >= 90 ? 'high' : pct >= 60 ? 'med' : '';
+        const isFull   = r.current >= r.max;
+        return `
+            <a class="route-status-item" href="#caravanas">
+                <span class="route-status-name">${r.name.replace('Entrada U → ', '')}</span>
+                <div class="route-status-bar-wrap">
+                    <div class="route-status-bar">
+                        <div class="route-status-fill ${fillCls}" style="width:${pct}%;"></div>
+                    </div>
+                    <span class="route-status-pct">${isFull ? '🔒' : pct + '%'}</span>
+                </div>
+                <span class="route-status-time">⏱ ${r.time} · ${r.current}/${r.max} personas</span>
+            </a>
+        `;
+    }).join('');
+}
+
+
 
 /* ============================================
    SOLICITAR ACOMPAÑAMIENTO

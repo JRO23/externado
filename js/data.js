@@ -284,6 +284,42 @@ const DB = {
                 current: 4, max: 14,
                 color: '#388E3C', textColor: '#fff'
             },
+            {
+                id: 7,
+                name: 'Entrada U → Centro Internacional',
+                station: 'CENTRO INTERNACIONAL',
+                desc: 'Por Av. Jiménez hacia el norte hasta la Torre Colpatria. Zona bien iluminada y con flujo peatonal alto.',
+                time: '04:30 PM', duration: '15 min caminando',
+                current: 6, max: 16,
+                color: '#6A1B9A', textColor: '#fff'
+            },
+            {
+                id: 8,
+                name: 'Entrada U → Museo Nacional',
+                station: 'MUSEO NACIONAL',
+                desc: 'Por Carrera 7 hacia el norte. Acera amplia y vigilada. Ideal para quienes toman SITP por la 26.',
+                time: '05:00 PM', duration: '22 min caminando',
+                current: 2, max: 10,
+                color: '#00838F', textColor: '#fff'
+            },
+            {
+                id: 9,
+                name: 'Entrada U → Terminal del Sur',
+                station: 'TERMINAL DEL SUR',
+                desc: 'TransMilenio desde Las Aguas, directo al Portal Sur. Salida coordinada con portería.',
+                time: '06:30 PM', duration: '40 min en TM',
+                current: 10, max: 20,
+                color: '#E65100', textColor: '#fff'
+            },
+            {
+                id: 10,
+                name: 'Entrada U → Calle 100',
+                station: 'CALLE 100',
+                desc: 'TransMilenio express desde Av. Jiménez hasta Calle 100. Acompañamiento hasta la estación.',
+                time: '08:00 PM', duration: '30 min en TM',
+                current: 0, max: 12,
+                color: '#37474F', textColor: '#fff'
+            },
         ];
         this.saveRoutes(defaults);
         return defaults;

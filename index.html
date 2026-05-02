@@ -162,6 +162,7 @@
         <div class="nav-links" id="nav-links">
             <a href="#reportes" class="nav-link">Radar</a>
             <a href="#caravanas" class="nav-link">Rutas</a>
+            <a href="#actividad" class="nav-link">Actividad</a>
             <a href="#solicitar" class="nav-link">Acompañamiento</a>
         </div>
         <div class="nav-actions">
@@ -175,8 +176,19 @@
     <div class="mobile-menu" id="mobile-menu">
         <a href="#reportes" onclick="closeMobileMenu()">Radar de Incidencias</a>
         <a href="#caravanas" onclick="closeMobileMenu()">Rutas Disponibles</a>
+        <a href="#actividad" onclick="closeMobileMenu()">Actividad en Vivo</a>
         <a href="#solicitar" onclick="closeMobileMenu()">Solicitar Acompañamiento</a>
         <a href="dashboard.html" onclick="closeMobileMenu()">Mi Panel</a>
+    </div>
+
+    <!-- ===== LIVE TICKER ===== -->
+    <div class="live-ticker" id="live-ticker">
+        <span class="ticker-label">🔴 EN VIVO</span>
+        <div class="ticker-track" id="ticker-track">
+            <div class="ticker-inner" id="ticker-inner">
+                <!-- Populated by JS -->
+            </div>
+        </div>
     </div>
 
     <!-- ===== HERO ===== -->
@@ -251,6 +263,37 @@
         </div>
         <div class="routes-grid" id="routes-grid">
             <!-- Populated by JS -->
+        </div>
+    </section>
+
+    <!-- ===== LIVE ACTIVITY FEED ===== -->
+    <section id="actividad" class="section">
+        <div class="section-header">
+            <h2 class="section-title">⚡ ACTIVIDAD EN VIVO</h2>
+            <p class="section-subtitle">Personas uniéndose a caravanas ahora mismo — actualizado en tiempo real</p>
+        </div>
+        <div class="activity-layout">
+            <!-- Notification stream -->
+            <div class="activity-feed" id="activity-feed">
+                <div class="activity-feed-header">
+                    <span class="live-dot"></span>
+                    <span class="activity-feed-title">Notificaciones de caravana</span>
+                    <span class="activity-count" id="activity-count">0 eventos</span>
+                </div>
+                <div class="activity-list" id="activity-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            <!-- Route stats sidebar -->
+            <div class="activity-stats">
+                <div class="activity-stats-title">📊 Estado de Rutas</div>
+                <div class="route-status-list" id="route-status-list">
+                    <!-- Populated by JS -->
+                </div>
+                <div style="margin-top:20px;text-align:center;">
+                    <a href="#caravanas" class="btn-primary" style="font-size:0.8rem;padding:12px 20px;">Ver todas las rutas ↓</a>
+                </div>
+            </div>
         </div>
     </section>
 
