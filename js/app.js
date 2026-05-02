@@ -11,9 +11,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     await renderRecentRequestsPreview();
     initSOS();
     animateStats();
+});
 
-    // Cargar incidentes en el mapa una vez que los datos estén listos
-    RadarMap.loadIncidents();
+// Cargar marcadores de incidentes en el mapa (espera a que Leaflet init)
+window.addEventListener('load', function() {
+    setTimeout(function() { RadarMap.loadIncidents(); }, 500);
 });
 
 /* ============================================
