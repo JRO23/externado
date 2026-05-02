@@ -3,16 +3,18 @@
    ============================================ */
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Inicializar autenticación con Supabase
-    await Auth.init();
+    // Inicializar autenticación con Supabase (sin bloquear si falla)
+    try { await Auth.init(); } catch(e) { console.warn('Auth init error:', e); }
 
     renderFeaturedRoutes();
     renderRoutes();
     renderTicker();
     renderActivityFeed();
     renderRouteStatusList();
-    await renderReports();
-    await renderRecentRequestsPreview();
+
+    try { await renderReports(); } catch(e) { console.warn('renderReports error:', e); }
+    try { await renderRecentRequestsPreview(); } catch(e) {}
+
     initSOS();
     animateStats();
 });
