@@ -5,12 +5,13 @@
 
 const RadarMap = (() => {
 
-    // ── Coordenadas clave ──────────────────────────────────────────
-    const EXTERNADO  = [4.60155, -74.06635]; // Entrada principal U
-    const LAS_AGUAS  = [4.60055, -74.06355]; // Estación Las Aguas
-    const SAN_VIC    = [4.59575, -74.07235]; // San Victorino
-    const AV_JIM     = [4.60285, -74.07105]; // Av. Jiménez
-    const CANDELARIA = [4.59845, -74.07545]; // La Candelaria
+    // ── Coordenadas clave (verificadas con OSM/Wikipedia) ─────────
+    const EXTERNADO    = [4.5958,  -74.0684]; // Universidad Externado — Calle 12 #1-17 Este
+    const LAS_AGUAS    = [4.6025,  -74.0684]; // Estación TransMilenio Las Aguas
+    const UNIVERSIDADES= [4.6054,  -74.0669]; // Estación TransMilenio Universidades — Cra 3 con Cl 19
+    const SAN_VIC      = [4.6010,  -74.0773]; // Estación TransMilenio San Victorino — Av. Cra 10
+    const AV_JIM       = [4.6028,  -74.0797]; // Estación TransMilenio Av. Jiménez — Av. Caracas
+    const CANDELARIA   = [4.5917,  -74.0741]; // Barrio La Candelaria (centro histórico)
 
     let map          = null;
     let incidentLayer = null;
@@ -92,17 +93,24 @@ const RadarMap = (() => {
 
     // ── Geocodificación aproximada ─────────────────────────────────
     var LOCATION_HINTS = [
-        { keys: ['aguas', 'las aguas'],            lat: 4.60055, lng: -74.06355 },
-        { keys: ['jiménez', 'jimenez', 'av jim'],  lat: 4.60285, lng: -74.07105 },
-        { keys: ['victorino', 'san victorino'],     lat: 4.59575, lng: -74.07235 },
-        { keys: ['candelaria', 'la candelaria'],    lat: 4.59845, lng: -74.07545 },
-        { keys: ['chorro', 'quevedo'],              lat: 4.59988, lng: -74.07265 },
-        { keys: ['calle 12', 'cl 12'],              lat: 4.59985, lng: -74.06700 },
-        { keys: ['calle 11', 'cl 11'],              lat: 4.59840, lng: -74.06720 },
-        { keys: ['carrera 4', 'kr 4', 'cra 4'],    lat: 4.60100, lng: -74.06500 },
-        { keys: ['carrera 6', 'kr 6', 'cra 6'],    lat: 4.60100, lng: -74.07000 },
-        { keys: ['entrada', 'puerta principal'],    lat: 4.60155, lng: -74.06635 },
-        { keys: ['parking', 'parqueadero'],         lat: 4.60200, lng: -74.06700 },
+        // Estaciones TransMilenio
+        { keys: ['aguas', 'las aguas'],                        lat: 4.6025,  lng: -74.0684 },
+        { keys: ['universidades', 'est. universidades'],       lat: 4.6054,  lng: -74.0669 },
+        { keys: ['jiménez', 'jimenez', 'av jim', 'av. jim'],  lat: 4.6028,  lng: -74.0797 },
+        { keys: ['victorino', 'san victorino'],                lat: 4.6010,  lng: -74.0773 },
+        // Barrios y sectores
+        { keys: ['candelaria', 'la candelaria'],               lat: 4.5917,  lng: -74.0741 },
+        { keys: ['chorro', 'quevedo'],                         lat: 4.5992,  lng: -74.0756 },
+        // Vías cercanas a la U
+        { keys: ['calle 12', 'cl 12'],                         lat: 4.5960,  lng: -74.0690 },
+        { keys: ['calle 11', 'cl 11'],                         lat: 4.5948,  lng: -74.0690 },
+        { keys: ['carrera 4', 'kr 4', 'cra 4'],               lat: 4.5970,  lng: -74.0670 },
+        { keys: ['carrera 6', 'kr 6', 'cra 6'],               lat: 4.5970,  lng: -74.0710 },
+        // Entrada universidad
+        { keys: ['entrada', 'puerta principal', 'externado'],  lat: 4.5958,  lng: -74.0684 },
+        { keys: ['parking', 'parqueadero'],                    lat: 4.5962,  lng: -74.0688 },
+        // Plaza España / San Victorino (comercial)
+        { keys: ['plaza españa', 'plaza espana', 'españa'],    lat: 4.6003,  lng: -74.0801 },
     ];
 
     function guessCoords(locationText) {
@@ -158,38 +166,60 @@ const RadarMap = (() => {
 
             // ── Marcadores fijos ───────────────────────────────────
 
+            // ── Universidad Externado (marcador principal) ─────────
             L.marker(EXTERNADO, { icon: makeIcon('#4CAF50', '&#127963;', 42), zIndexOffset: 1000 })
                 .addTo(map)
                 .bindPopup(
                     '<div style="font-family:Inter,sans-serif;font-weight:800;color:#3E2723;font-size:0.85rem;">' +
-                    '&#127963; UNIVERSIDAD EXTERNADO<br>' +
-                    '<span style="font-weight:400;font-size:0.78rem;color:#6D4C41;">Puerta Principal &mdash; Calle 12 # 1-17</span>' +
+                    '&#127963; UNIVERSIDAD EXTERNADO DE COLOMBIA<br>' +
+                    '<span style="font-weight:400;font-size:0.78rem;color:#6D4C41;">Puerta Principal &mdash; Calle 12 #1-17 Este, La Candelaria</span>' +
                     '</div>',
                     { maxWidth: 240 }
                 );
 
+            // ── Estaciones TransMilenio ────────────────────────────
             L.marker(LAS_AGUAS, { icon: makeIcon('#1976D2', '&#128647;', 36) })
                 .addTo(map)
-                .bindPopup('<b style="font-family:Inter,sans-serif;">&#128647; Estación Las Aguas</b><br><small>TransMilenio &mdash; Línea A</small>');
+                .bindPopup(
+                    '<b style="font-family:Inter,sans-serif;">&#128647; Estación Las Aguas</b><br>' +
+                    '<small>TransMilenio &mdash; Troncal Caracas &mdash; Cra 3 con Cl 13</small>'
+                );
+
+            L.marker(UNIVERSIDADES, { icon: makeIcon('#0288D1', '&#127979;', 36) })
+                .addTo(map)
+                .bindPopup(
+                    '<b style="font-family:Inter,sans-serif;">&#127979; Estación Universidades</b><br>' +
+                    '<small>TransMilenio &mdash; Troncal Caracas &mdash; Cra 3 con Cl 19-22</small>'
+                );
 
             L.marker(SAN_VIC, { icon: makeIcon('#6D4C41', '&#128722;', 34) })
                 .addTo(map)
-                .bindPopup('<b style="font-family:Inter,sans-serif;">San Victorino</b>');
+                .bindPopup(
+                    '<b style="font-family:Inter,sans-serif;">&#128647; Estación San Victorino</b><br>' +
+                    '<small>TransMilenio &mdash; Troncal Caracas &mdash; Av. Cra 10 con Cl 11-13</small>'
+                );
 
             L.marker(AV_JIM, { icon: makeIcon('#FFA000', '&#128652;', 34) })
                 .addTo(map)
-                .bindPopup('<b style="font-family:Inter,sans-serif;">&#128652; Av. Jiménez</b><br><small>Parada SITP</small>');
+                .bindPopup(
+                    '<b style="font-family:Inter,sans-serif;">&#128652; Estación Av. Jiménez</b><br>' +
+                    '<small>TransMilenio &mdash; Intercambiador Caracas/Américas &mdash; Av. Caracas con Cl 13</small>'
+                );
 
+            // ── Barrio La Candelaria ───────────────────────────────
             L.marker(CANDELARIA, { icon: makeIcon('#5C6BC0', '&#9962;', 34) })
                 .addTo(map)
-                .bindPopup('<b style="font-family:Inter,sans-serif;">La Candelaria</b>');
+                .bindPopup(
+                    '<b style="font-family:Inter,sans-serif;">&#9962; La Candelaria</b><br>' +
+                    '<small>Centro histórico de Bogotá &mdash; Mayor vigilancia nocturna</small>'
+                );
 
             // Capa de incidentes
             incidentLayer = L.layerGroup().addTo(map);
 
-            // Radio zona monitoreada
+            // Radio zona monitoreada (~800m alrededor de la U)
             L.circle(EXTERNADO, {
-                radius: 600,
+                radius: 800,
                 color: '#FFC107',
                 fillColor: '#FFC107',
                 fillOpacity: 0.05,
