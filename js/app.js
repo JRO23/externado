@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Inicializar autenticación con Supabase
     await Auth.init();
 
+    renderFeaturedRoutes();
     renderRoutes();
     renderTicker();
     renderActivityFeed();
@@ -95,6 +96,72 @@ async function submitReport(e) {
 /* ============================================
    RUTAS — Caravanas
    ============================================ */
+
+/* --- 4 Cuadros Destacados --- */
+function renderFeaturedRoutes() {
+    const container = document.getElementById('featured-routes');
+    if (!container) return;
+    const routes = DB.getRoutes();
+    // Mostrar solo las primeras 4 rutas como cuadros destacados
+    const featured = routes.slice(0, 4);
+    container.innerHTML = featured.map((route, i) => {
+        const isFull = route.current >= route.max;
+        const pct    = Math.round((route.current / route.max) * 100);
+        const spotsLeft = route.max - route.current;
+        return `
+        <div class="feat-card" id="feat-card-${route.id}" style="--feat-color:${route.color};">
+            <div class="feat-card-top" style="background:${route.color};">
+                <div class="feat-destination-label">DESTINO</div>
+                <div class="feat-destination">${route.station}</div>
+                <div class="feat-time">🕐 Salida ${route.time} &nbsp;·&nbsp; ${route.duration || 'Puerta Principal'}</div>
+            </div>
+            <div class="feat-card-body">
+                <div class="feat-people-section">
+                    <div class="feat-people-count" id="feat-count-${route.id}">${route.current}</div>
+                    <div class="feat-people-label">personas unidas</div>
+                    <div class="feat-capacity-row">
+                        <div class="feat-cap-bar">
+                            <div class="feat-cap-fill" style="width:${pct}%; background:${route.color};"></div>
+                        </div>
+                        <span class="feat-cap-spots ${isFull ? 'feat-full' : ''}">${
+                            isFull ? '🔒 Cupo lleno' : `${spotsLeft} cupo${spotsLeft !== 1 ? 's' : ''} libre${spotsLeft !== 1 ? 's' : ''}`
+                        }</span>
+                    </div>
+                </div>
+                ${route.desc ? `<div class="feat-desc">${route.desc}</div>` : ''}
+                <button
+                    onclick="joinFeaturedRoute(${route.id})"
+                    class="feat-join-btn"
+                    id="feat-btn-${route.id}"
+                    style="background:${route.color}; border-color:${route.color};"
+                    ${isFull ? 'disabled' : ''}>
+                    ${isFull ? '🔒 Cupo Lleno' : '🚶 Unirse a esta Ruta'}
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function joinFeaturedRoute(id) {
+    const success = DB.joinRoute(id);
+    if (success) {
+        renderFeaturedRoutes();
+        renderRoutes();
+        renderRouteStatusList();
+        const route = DB.getRoutes().find(r => r.id === id);
+        if (route) pushActivityNotif({
+            type:   'joined',
+            icon:   '🚶',
+            route:  route.name,
+            detail: `Una persona se unió a la caravana hacia ${route.station}. Cupos restantes: ${route.max - route.current}`,
+            time:   Date.now(),
+        });
+        showNotification('🚶 ¡Unido!', 'Te has unido a la ruta. ¡Nos vemos en la entrada!', 'success');
+    } else {
+        showNotification('🔒 Sin cupo', 'Esta ruta ya está llena. Elige otra.', 'warning');
+    }
+}
+
 function renderRoutes() {
     const grid = document.getElementById('routes-grid');
     if (!grid) return;
@@ -132,6 +199,7 @@ function renderRoutes() {
 function joinRoute(id) {
     const success = DB.joinRoute(id);
     if (success) {
+        renderFeaturedRoutes();
         renderRoutes();
         renderRouteStatusList();
         // Push live notification

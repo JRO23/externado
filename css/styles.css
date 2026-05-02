@@ -594,7 +594,203 @@ img { max-width: 100%; }
 .report-text { font-size: 11px; font-style: italic; color: var(--dark-2); line-height: 1.4; }
 
 /* ============================================
-   ROUTES
+   FEATURED ROUTE CARDS (4 cuadros destacados)
+   ============================================ */
+.featured-routes {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    max-width: 1280px;
+    margin: 0 auto 48px;
+}
+
+.feat-card {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    border: 2px solid var(--gray-200);
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+.feat-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+    border-color: var(--feat-color, var(--red));
+}
+
+.feat-card-top {
+    padding: 20px 20px 18px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+.feat-card-top::after {
+    content: '';
+    position: absolute;
+    bottom: -20px;
+    right: -20px;
+    width: 80px;
+    height: 80px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+}
+
+.feat-destination-label {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    opacity: 0.75;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.feat-destination {
+    font-family: 'Bungee', cursive;
+    font-size: clamp(0.95rem, 2vw, 1.2rem);
+    line-height: 1.15;
+    margin-bottom: 8px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+
+.feat-time {
+    font-size: 0.72rem;
+    font-weight: 600;
+    opacity: 0.85;
+}
+
+.feat-card-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    flex: 1;
+}
+
+.feat-people-section {
+    text-align: center;
+    padding: 14px 10px 8px;
+    background: var(--gray-100);
+    border-radius: var(--radius-md);
+}
+
+.feat-people-count {
+    font-family: 'Bungee', cursive;
+    font-size: 3rem;
+    line-height: 1;
+    color: var(--dark-2);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.feat-card:hover .feat-people-count {
+    transform: scale(1.08);
+}
+
+.feat-people-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--mid);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.feat-capacity-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.feat-cap-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--gray-200);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.feat-cap-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s ease;
+    opacity: 0.85;
+}
+
+.feat-cap-spots {
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: var(--green);
+    white-space: nowrap;
+}
+.feat-cap-spots.feat-full {
+    color: var(--red);
+}
+
+.feat-desc {
+    font-size: 0.78rem;
+    color: var(--mid);
+    line-height: 1.5;
+    padding: 8px 10px;
+    background: var(--gray-100);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--yellow-dark);
+}
+
+.feat-join-btn {
+    width: 100%;
+    padding: 14px 16px;
+    border: none;
+    border-radius: var(--radius-md);
+    color: #fff;
+    font-family: 'Bungee', cursive;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: var(--transition);
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    text-transform: uppercase;
+}
+.feat-join-btn:hover:not(:disabled) {
+    filter: brightness(1.12);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+.feat-join-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    filter: grayscale(0.3);
+}
+
+/* Divisor entre cuadros destacados y todas las rutas */
+.routes-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: 1280px;
+    margin: 0 auto 40px;
+}
+.routes-divider-line {
+    flex: 1;
+    height: 2px;
+    background: var(--gray-200);
+    border-radius: 1px;
+}
+.routes-divider-text {
+    font-family: 'Bungee', cursive;
+    font-size: 0.75rem;
+    color: var(--mid);
+    letter-spacing: 2px;
+    white-space: nowrap;
+    padding: 0 8px;
+}
+
+/* ============================================
+   ROUTES (grid general)
    ============================================ */
 .routes-grid {
     display: grid;
@@ -1441,6 +1637,7 @@ img { max-width: 100%; }
     .dash-main { padding: 24px; }
     .activity-layout { grid-template-columns: 1fr; }
     .activity-stats { position: static; }
+    .featured-routes { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
 
 @media (max-width: 768px) {
@@ -1468,11 +1665,14 @@ img { max-width: 100%; }
     .requests-table th:nth-child(4),
     .requests-table td:nth-child(4) { display: none; }
     .live-ticker { top: var(--nav-h); }
+    .featured-routes { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .feat-people-count { font-size: 2.2rem; }
 }
 
 @media (max-width: 480px) {
     .hero-btns { flex-direction: column; }
     .btn-lg { padding: 14px 24px; font-size: 0.9rem; }
     .kpi-grid { grid-template-columns: 1fr; }
+    .featured-routes { grid-template-columns: 1fr; }
 }
 
