@@ -11,6 +11,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await renderRecentRequestsPreview();
     initSOS();
     animateStats();
+
+    // Cargar incidentes en el mapa una vez que los datos estén listos
+    RadarMap.loadIncidents();
 });
 
 /* ============================================
@@ -73,21 +76,16 @@ async function submitReport(e) {
     btn.disabled = false;
 
     showNotification('✅ Reporte publicado', 'La comunidad ya puede ver tu alerta.', 'success');
-    addMapAlert();
+
+    // Añadir marcador real en el mapa Leaflet
+    RadarMap.addLiveAlert({
+        type:     document.getElementById('report-type')?.value || 'Otro',
+        location: document.getElementById('report-location')?.value || '',
+        desc:     document.getElementById('report-desc')?.value || '',
+        time:     Date.now(),
+    });
 }
 
-function addMapAlert() {
-    const map = document.getElementById('map-container');
-    if (!map) return;
-    const dot = document.createElement('div');
-    dot.className = 'map-point alert';
-    dot.style.top  = Math.floor(Math.random() * 60 + 15) + '%';
-    dot.style.left = Math.floor(Math.random() * 60 + 15) + '%';
-    dot.innerHTML  = '<span class="map-label">NUEVO</span>';
-    dot.onclick    = () => showNotification('🚨 ALERTA', 'Nuevo incidente reportado.');
-    map.appendChild(dot);
-    setTimeout(() => dot.remove(), 12000);
-}
 
 /* ============================================
    RUTAS — Caravanas

@@ -7,6 +7,8 @@
     <title>Externado Move — Seguridad Colectiva</title>
     <meta name="description" content="Plataforma de seguridad y acompañamiento universitario. Reporta incidentes, únete a caravanas y solicita escolta.">
     <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <!-- Leaflet.js — mapa interactivo gratuito -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -219,33 +221,12 @@
         <div class="radar-grid">
             <!-- Map -->
             <div class="radar-map-wrap">
-                <div class="map-container" id="map-container">
-                    <div class="map-overlay-text">ZONA EXTERNADO — BOGOTÁ</div>
-                    <!-- Origin -->
-                    <div class="map-point origin" style="top:18%;left:78%;">
-                        <span class="map-label">ENTRADA U</span>
-                    </div>
-                    <!-- Alert -->
-                    <div class="map-point alert" style="top:52%;left:42%;" onclick="showNotification('🚨 ALERTA','Hombre sospechoso reportado en Calle 12.')">
-                        <span class="map-label">AVISTAMIENTO</span>
-                    </div>
-                    <!-- Destinations -->
-                    <div class="map-point" style="top:82%;left:18%;"><span class="map-label">SAN VICTORINO</span></div>
-                    <div class="map-point" style="top:42%;left:52%;"><span class="map-label">LAS AGUAS</span></div>
-                    <svg class="map-svg" aria-hidden="true">
-                        <defs>
-                            <marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-                                <path d="M 0 0 L 6 3 L 0 6 z" fill="rgba(62,39,35,0.4)"/>
-                            </marker>
-                        </defs>
-                        <line x1="78%" y1="18%" x2="52%" y2="42%" stroke="rgba(62,39,35,0.3)" stroke-width="2" stroke-dasharray="6" marker-end="url(#arrow)"/>
-                        <line x1="52%" y1="42%" x2="18%" y2="82%" stroke="rgba(62,39,35,0.3)" stroke-width="2" stroke-dasharray="6" marker-end="url(#arrow)"/>
-                    </svg>
-                </div>
+                <div class="map-container" id="map-container"></div>
                 <div class="map-legend">
-                    <span class="legend-dot origin"></span> Origen
+                    <span class="legend-dot origin"></span> Entrada U
                     <span class="legend-dot alert"></span> Alerta activa
-                    <span class="legend-dot"></span> Destino
+                    <span class="legend-dot"></span> Destino / Punto clave
+                    <span class="legend-dot police"></span> Presencia policial
                 </div>
             </div>
 
@@ -334,9 +315,11 @@
         <div class="footer-bottom">© 2026 Externado Move · Universidad Externado de Colombia</div>
     </footer>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN2GqEE=" crossorigin=""></script>
     <script src="js/supabase-client.js"></script>
     <script src="js/data.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/radar-map.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

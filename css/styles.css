@@ -442,15 +442,13 @@ img { max-width: 100%; }
 
 .map-container {
     position: relative;
-    background: #e8e4e0;
-    background-image:
-        radial-gradient(circle, #ccc 1px, transparent 1px);
-    background-size: 28px 28px;
     border-radius: var(--radius-lg);
     border: 4px solid var(--dark-2);
-    height: 420px;
+    height: 460px;
     overflow: hidden;
     box-shadow: var(--shadow-lg);
+    /* Leaflet necesita z-index base */
+    z-index: 0;
 }
 
 .map-overlay-text {
@@ -519,8 +517,9 @@ img { max-width: 100%; }
     border: 2px solid white;
     box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
-.legend-dot.origin { background: var(--green); }
-.legend-dot.alert { background: var(--orange); }
+.legend-dot.origin  { background: var(--green); }
+.legend-dot.alert   { background: var(--orange); }
+.legend-dot.police  { background: #4CAF50; border-color: #388E3C; }
 
 /* ============================================
    REPORT FEED
