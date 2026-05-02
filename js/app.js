@@ -98,7 +98,7 @@ function renderRoutes() {
     const routes = DB.getRoutes();
     grid.innerHTML = '';
     routes.forEach(route => {
-        const pct = Math.round((route.current / route.max) * 100);
+        const pct       = Math.round((route.current / route.max) * 100);
         const fillClass = pct >= 90 ? 'full' : pct >= 60 ? 'medium' : '';
         const isFull    = route.current >= route.max;
         grid.innerHTML += `
@@ -108,7 +108,8 @@ function renderRoutes() {
                 </div>
                 <div class="route-card-body">
                     <div class="route-name">${route.name}</div>
-                    <div class="route-meta">🕐 SALIDA: ${route.time} &nbsp;|&nbsp; 📍 Puerta Principal</div>
+                    <div class="route-meta">🕐 SALIDA: ${route.time} &nbsp;|&nbsp; 🚶 ${route.duration || 'Puerta Principal'}</div>
+                    ${route.desc ? `<div class="route-desc">${route.desc}</div>` : ''}
                     <div class="route-capacity">
                         <span class="route-cap-text" id="cap-${route.id}">${route.current}/${route.max}</span>
                         <span style="font-size:0.72rem;color:var(--mid);font-weight:700;">${pct}% lleno</span>
