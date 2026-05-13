@@ -246,7 +246,7 @@ const DB = {
                 desc: 'Por Calle 12 hacia el occidente. Parada SITP frente al Banco de la República.',
                 time: '02:00 PM', duration: '10 min caminando',
                 current: 5, max: 10,
-                color: '#4CAF50', textColor: '#fff'
+                color: '#FFA000', textColor: '#fff'
             },
             {
                 id: 3,
@@ -309,7 +309,7 @@ const DB = {
                 desc: 'TransMilenio desde Las Aguas, directo al Portal Sur. Salida coordinada con portería.',
                 time: '06:30 PM', duration: '40 min en TM',
                 current: 10, max: 20,
-                color: '#4CAF50', textColor: '#fff'
+                color: '#E65100', textColor: '#fff'
             },
             {
                 id: 10,

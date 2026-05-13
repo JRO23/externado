@@ -50,26 +50,26 @@ const RadarMap = (() => {
 
     function makeAlertIcon(type) {
         var cfg = {
-            'Persona Sospechosa': { color: '#4CAF50', emoji: '&#128100;' },
+            'Persona Sospechosa': { color: '#FF9800', emoji: '&#128100;' },
             'Zona Oscura':        { color: '#5C6BC0', emoji: '&#127761;' },
             'Robo':               { color: '#D32F2F', emoji: '&#128682;' },
             'Presencia Policial': { color: '#4CAF50', emoji: '&#128659;' },
             'Otro':               { color: '#FF5722', emoji: '&#9888;'   },
         };
-        var c = cfg[type] || { color: '#4CAF50', emoji: '&#9888;' };
+        var c = cfg[type] || { color: '#FF9800', emoji: '&#9888;' };
         return makeIcon(c.color, c.emoji, 38);
     }
 
     // ── Popup de incidente ─────────────────────────────────────────
     function buildPopup(r) {
         var colors = {
-            'Persona Sospechosa': '#4CAF50',
+            'Persona Sospechosa': '#FF9800',
             'Zona Oscura':        '#5C6BC0',
             'Robo':               '#D32F2F',
             'Presencia Policial': '#4CAF50',
             'Otro':               '#FF5722',
         };
-        var color   = colors[r.type] || '#4CAF50';
+        var color   = colors[r.type] || '#FF9800';
         var timeStr = (typeof DB !== 'undefined') ? DB.timeAgo(r.time) : 'Reciente';
         return (
             '<div style="font-family:Inter,sans-serif;min-width:200px;max-width:260px;">' +
@@ -199,7 +199,7 @@ const RadarMap = (() => {
                     '<small>TransMilenio &mdash; Troncal Caracas &mdash; Av. Cra 10 con Cl 11-13</small>'
                 );
 
-            L.marker(AV_JIM, { icon: makeIcon('#4CAF50', '&#128652;', 34) })
+            L.marker(AV_JIM, { icon: makeIcon('#FFA000', '&#128652;', 34) })
                 .addTo(map)
                 .bindPopup(
                     '<b style="font-family:Inter,sans-serif;">&#128652; Estación Av. Jiménez</b><br>' +
@@ -255,8 +255,8 @@ const RadarMap = (() => {
                 if (r.type !== 'Presencia Policial') {
                     var pulse = L.circle(coords, {
                         radius: 45,
-                        color: '#4CAF50',
-                        fillColor: '#4CAF50',
+                        color: '#FF9800',
+                        fillColor: '#FF9800',
                         fillOpacity: 0.15,
                         weight: 2,
                     }).addTo(incidentLayer);
