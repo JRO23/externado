@@ -6,9 +6,9 @@
     --red: #D32F2F;
     --red-dark: #8B0000;
     --red-light: #FFEBEE;
-    --yellow: #4bce37;
-    --yellow-dark: #29de32;
-    --gold: #32db29;
+    --yellow: #2ECC71;
+    --yellow-dark: #27AE60;
+    --gold: #1E8449;
     --dark: #1A0F0C;
     --dark-2: #3E2723;
     --mid: #6D4C41;
@@ -252,7 +252,7 @@ img {
 
 .nav-title {
     font-family: 'Bungee', cursive;
-    color: var(--red);
+    color: var(--yellow);
     font-size: 1.1rem;
     letter-spacing: -0.5px;
 }
@@ -516,8 +516,8 @@ img {
 
 .hero-badge {
     display: inline-block;
-    background: rgba(255, 193, 7, 0.15);
-    border: 1px solid rgba(255, 193, 7, 0.4);
+    background: rgba(46, 204, 113, 0.15);
+    border: 1px solid rgba(46, 204, 113, 0.4);
     color: var(--yellow);
     padding: 6px 18px;
     border-radius: var(--radius-full);
