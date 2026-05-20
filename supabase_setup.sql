@@ -94,3 +94,115 @@ create policy "Usuarios insertan reportes"
 create policy "Admin elimina reportes"
   on public.reports for delete
   using (true);
+
+-- ============================================================
+-- 6. Tabla de rutas (caravanas)
+-- ============================================================
+create table if not exists public.routes (
+  id          int primary key,
+  name        text not null,
+  station     text not null,
+  description text,
+  time        text,
+  duration    text,
+  current     int not null default 0,
+  max         int not null default 15,
+  color       text,
+  text_color  text,
+  updated_at  timestamptz default now()
+);
+
+alter table public.routes enable row level security;
+
+-- Cualquiera puede leer las rutas (incluso sin sesión)
+create policy "Todos leen rutas"
+  on public.routes for select
+  using (true);
+
+-- Solo usuarios autenticados pueden actualizar via RPC
+create policy "Auth actualiza rutas"
+  on public.routes for update
+  using (auth.role() = 'authenticated');
+
+-- ============================================================
+-- 7. Datos iniciales de rutas (solo las 5 rutas activas)
+-- ============================================================
+insert into public.routes (id, name, station, description, time, duration, current, max, color, text_color)
+values
+  (1, 'Entrada U → Estación Las Aguas', 'ESTACIÓN LAS AGUAS', 'Por Carrera 4 hasta Calle 10. Ruta iluminada con presencia policial.',                                  '01:15 PM', '8 min caminando',  0, 15, '#FFC107', '#3E2723'),
+  (2, 'Entrada U → Av. Jiménez',        'AV. JIMÉNEZ',        'Por Calle 12 hacia el occidente. Parada SITP frente al Banco de la República.',                         '02:00 PM', '10 min caminando', 0, 10, '#FFA000', '#fff'),
+  (3, 'Entrada U → San Victorino',      'SAN VICTORINO',      'Por Calle 13. Mayor vigilancia en el recorrido. Recomendada en grupo.',                                  '05:30 PM', '18 min caminando', 0, 20, '#3E2723', '#fff'),
+  (4, 'Entrada U → La Candelaria',      'LA CANDELARIA',      'Por Carrera 2. Zona histórica. Evitar después de las 7 pm.',                                             '03:45 PM', '12 min caminando', 0, 12, '#D32F2F', '#fff'),
+  (5, 'Entrada U → Museo Nacional',     'MUSEO NACIONAL',     'Por Carrera 7 hacia el norte. Acera amplia y vigilada. Ideal para quienes toman SITP por la 26.',       '05:00 PM', '22 min caminando', 0, 10, '#00838F', '#fff')
+on conflict (id) do nothing;
+
+-- ============================================================
+-- 8. Función RPC atómica para incrementar personas en una ruta
+--    Solo usuarios autenticados pueden llamarla.
+-- ============================================================
+create or replace function increment_route(route_id int)
+returns json
+language plpgsql
+security definer
+as $$
+declare
+  r public.routes;
+begin
+  -- Verificar que el usuario esté autenticado
+  if auth.uid() is null then
+    return json_build_object('success', false, 'error', 'unauthenticated');
+  end if;
+
+  -- Bloquear la fila para evitar race conditions
+  select * into r from public.routes where id = route_id for update;
+
+  if not found then
+    return json_build_object('success', false, 'error', 'not_found');
+  end if;
+
+  if r.current >= r.max then
+    return json_build_object('success', false, 'error', 'full');
+  end if;
+
+  update public.routes
+    set current = current + 1, updated_at = now()
+    where id = route_id;
+
+  return json_build_object('success', true, 'current', r.current + 1, 'max', r.max);
+end;
+$$;
+
+-- ============================================================
+-- 9. Función para reiniciar todas las rutas cada 10 minutos
+--    Elimina las filas y las vuelve a insertar con current = 0.
+--    security definer para saltarse RLS en DELETE/INSERT.
+-- ============================================================
+create or replace function reset_routes()
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  delete from public.routes;
+
+  insert into public.routes (id, name, station, description, time, duration, current, max, color, text_color)
+  values
+    (1, 'Entrada U → Estación Las Aguas', 'ESTACIÓN LAS AGUAS', 'Por Carrera 4 hasta Calle 10. Ruta iluminada con presencia policial.',                                  '01:15 PM', '8 min caminando',  0, 15, '#FFC107', '#3E2723'),
+    (2, 'Entrada U → Av. Jiménez',        'AV. JIMÉNEZ',        'Por Calle 12 hacia el occidente. Parada SITP frente al Banco de la República.',                         '02:00 PM', '10 min caminando', 0, 10, '#FFA000', '#fff'),
+    (3, 'Entrada U → San Victorino',      'SAN VICTORINO',      'Por Calle 13. Mayor vigilancia en el recorrido. Recomendada en grupo.',                                  '05:30 PM', '18 min caminando', 0, 20, '#3E2723', '#fff'),
+    (4, 'Entrada U → La Candelaria',      'LA CANDELARIA',      'Por Carrera 2. Zona histórica. Evitar después de las 7 pm.',                                             '03:45 PM', '12 min caminando', 0, 12, '#D32F2F', '#fff'),
+    (5, 'Entrada U → Museo Nacional',     'MUSEO NACIONAL',     'Por Carrera 7 hacia el norte. Acera amplia y vigilada. Ideal para quienes toman SITP por la 26.',       '05:00 PM', '22 min caminando', 0, 10, '#00838F', '#fff');
+end;
+$$;
+
+-- ============================================================
+-- 10. Programar el reinicio automático cada 10 minutos
+--     IMPORTANTE: Primero habilita la extensión pg_cron en
+--     Supabase → Database → Extensions → busca "pg_cron" → Enable
+-- ============================================================
+select cron.schedule(
+  'reset-routes-every-10min',   -- nombre del job (único)
+  '*/10 * * * *',               -- cada 10 minutos (:00, :10, :20, ...)
+  $$ select reset_routes(); $$
+);
+

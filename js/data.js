@@ -225,111 +225,125 @@ const DB = {
         }
     },
 
-    /* ---------- RUTAS (siguen en localStorage) ---------- */
-    getRoutes() {
-        // Limpiar caché vieja para mostrar las rutas actualizadas
-        localStorage.removeItem('em_routes');
-        const defaults = [
-            {
-                id: 1,
-                name: 'Entrada U → Estación Las Aguas',
-                station: 'ESTACIÓN LAS AGUAS',
-                desc: 'Por Carrera 4 hasta Calle 10. Ruta iluminada con presencia policial.',
-                time: '01:15 PM', duration: '8 min caminando',
-                current: 9, max: 15,
-                color: '#FFC107', textColor: '#3E2723'
-            },
-            {
-                id: 2,
-                name: 'Entrada U → Av. Jiménez',
-                station: 'AV. JIMÉNEZ',
-                desc: 'Por Calle 12 hacia el occidente. Parada SITP frente al Banco de la República.',
-                time: '02:00 PM', duration: '10 min caminando',
-                current: 5, max: 10,
-                color: '#FFA000', textColor: '#fff'
-            },
-            {
-                id: 3,
-                name: 'Entrada U → San Victorino',
-                station: 'SAN VICTORINO',
-                desc: 'Por Calle 13. Mayor vigilancia en el recorrido. Recomendada en grupo.',
-                time: '05:30 PM', duration: '18 min caminando',
-                current: 12, max: 20,
-                color: '#3E2723', textColor: '#fff'
-            },
-            {
-                id: 4,
-                name: 'Entrada U → La Candelaria',
-                station: 'LA CANDELARIA',
-                desc: 'Por Carrera 2. Zona histórica. Evitar después de las 7 pm.',
-                time: '03:45 PM', duration: '12 min caminando',
-                current: 3, max: 12,
-                color: '#D32F2F', textColor: '#fff'
-            },
-            {
-                id: 5,
-                name: 'Entrada U → Portal El Dorado',
-                station: 'PORTAL EL DORADO',
-                desc: 'Hasta Las Aguas y luego TransMilenio directo hacia el occidente.',
-                time: '06:00 PM', duration: '25 min en TM',
-                current: 7, max: 18,
-                color: '#1976D2', textColor: '#fff'
-            },
-            {
-                id: 6,
-                name: 'Entrada U → Chapinero',
-                station: 'CHAPINERO',
-                desc: 'TransMilenio desde Las Aguas hacia el norte. Ruta nocturna con acompañamiento.',
-                time: '07:30 PM', duration: '20 min en TM',
-                current: 4, max: 14,
-                color: '#388E3C', textColor: '#fff'
-            },
-            {
-                id: 7,
-                name: 'Entrada U → Centro Internacional',
-                station: 'CENTRO INTERNACIONAL',
-                desc: 'Por Av. Jiménez hacia el norte hasta la Torre Colpatria. Zona bien iluminada y con flujo peatonal alto.',
-                time: '04:30 PM', duration: '15 min caminando',
-                current: 6, max: 16,
-                color: '#6A1B9A', textColor: '#fff'
-            },
-            {
-                id: 8,
-                name: 'Entrada U → Museo Nacional',
-                station: 'MUSEO NACIONAL',
-                desc: 'Por Carrera 7 hacia el norte. Acera amplia y vigilada. Ideal para quienes toman SITP por la 26.',
-                time: '05:00 PM', duration: '22 min caminando',
-                current: 2, max: 10,
-                color: '#00838F', textColor: '#fff'
-            },
-            {
-                id: 9,
-                name: 'Entrada U → Terminal del Sur',
-                station: 'TERMINAL DEL SUR',
-                desc: 'TransMilenio desde Las Aguas, directo al Portal Sur. Salida coordinada con portería.',
-                time: '06:30 PM', duration: '40 min en TM',
-                current: 10, max: 20,
-                color: '#E65100', textColor: '#fff'
-            },
-            {
-                id: 10,
-                name: 'Entrada U → Calle 100',
-                station: 'CALLE 100',
-                desc: 'TransMilenio express desde Av. Jiménez hasta Calle 100. Acompañamiento hasta la estación.',
-                time: '08:00 PM', duration: '30 min en TM',
-                current: 0, max: 12,
-                color: '#37474F', textColor: '#fff'
-            },
-        ];
-        this.saveRoutes(defaults);
-        return defaults;
+    /* ---------- RUTAS (Supabase + localStorage fallback) ---------- */
+    async getRoutes() {
+        try {
+            const { data, error } = await supabase
+                .from('routes')
+                .select('*')
+                .order('id', { ascending: true });
+            if (error) throw error;
+            if (!data || data.length === 0) throw new Error('empty');
+            // Normalizar columna text_color → textColor
+            const routes = data.map(r => ({
+                id:       r.id,
+                name:     r.name,
+                station:  r.station,
+                desc:     r.description,
+                time:     r.time,
+                duration: r.duration,
+                current:  r.current,
+                max:      r.max,
+                color:    r.color,
+                textColor: r.text_color,
+            }));
+            // Actualizar caché local
+            localStorage.setItem('em_routes', JSON.stringify(routes));
+            return routes;
+        } catch {
+            // Fallback: caché local o semilla por defecto
+            const cached = localStorage.getItem('em_routes');
+            if (cached) {
+                try { return JSON.parse(cached); } catch {}
+            }
+            return this._seedRoutes();
+        }
     },
-    saveRoutes(routes) { localStorage.setItem('em_routes', JSON.stringify(routes)); },
-    joinRoute(id) {
-        const routes = this.getRoutes();
-        const route  = routes.find(r => r.id === id);
-        if (route && route.current < route.max) { route.current++; this.saveRoutes(routes); return true; }
-        return false;
+
+    _seedRoutes() {
+        return [
+            { id: 1, name: 'Entrada U → Estación Las Aguas', station: 'ESTACIÓN LAS AGUAS', desc: 'Por Carrera 4 hasta Calle 10. Ruta iluminada con presencia policial.',                            time: '01:15 PM', duration: '8 min caminando',  current: 0, max: 15, color: '#FFC107', textColor: '#3E2723' },
+            { id: 2, name: 'Entrada U → Av. Jiménez',         station: 'AV. JIMÉNEZ',        desc: 'Por Calle 12 hacia el occidente. Parada SITP frente al Banco de la República.',               time: '02:00 PM', duration: '10 min caminando', current: 0, max: 10, color: '#FFA000', textColor: '#fff' },
+            { id: 3, name: 'Entrada U → San Victorino',       station: 'SAN VICTORINO',      desc: 'Por Calle 13. Mayor vigilancia en el recorrido. Recomendada en grupo.',                      time: '05:30 PM', duration: '18 min caminando', current: 0, max: 20, color: '#3E2723', textColor: '#fff' },
+            { id: 4, name: 'Entrada U → La Candelaria',       station: 'LA CANDELARIA',      desc: 'Por Carrera 2. Zona histórica. Evitar después de las 7 pm.',                                   time: '03:45 PM', duration: '12 min caminando', current: 0, max: 12, color: '#D32F2F', textColor: '#fff' },
+            { id: 5, name: 'Entrada U → Museo Nacional',      station: 'MUSEO NACIONAL',     desc: 'Por Carrera 7 hacia el norte. Acera amplia y vigilada. Ideal para quienes toman SITP por la 26.', time: '05:00 PM', duration: '22 min caminando', current: 0, max: 10, color: '#00838F', textColor: '#fff' },
+        ];
+    },
+
+    async joinRoute(id) {
+        try {
+            const { data, error } = await supabase.rpc('increment_route', { route_id: id });
+            if (error) throw error;
+            if (!data.success) {
+                if (data.error === 'full')            return { ok: false, reason: 'full' };
+                if (data.error === 'unauthenticated') return { ok: false, reason: 'unauthenticated' };
+                return { ok: false, reason: data.error };
+            }
+            // Actualizar caché local
+            const cached = localStorage.getItem('em_routes');
+            if (cached) {
+                try {
+                    const routes = JSON.parse(cached);
+                    const r = routes.find(r => r.id === id);
+                    if (r) { r.current = data.current; localStorage.setItem('em_routes', JSON.stringify(routes)); }
+                } catch {}
+            }
+            return { ok: true, current: data.current, max: data.max };
+        } catch {
+            // Fallback a localStorage
+            const cached = localStorage.getItem('em_routes');
+            if (!cached) return { ok: false, reason: 'error' };
+            try {
+                const routes = JSON.parse(cached);
+                const route  = routes.find(r => r.id === id);
+                if (!route || route.current >= route.max) return { ok: false, reason: 'full' };
+                route.current++;
+                localStorage.setItem('em_routes', JSON.stringify(routes));
+                return { ok: true, current: route.current, max: route.max };
+            } catch {
+                return { ok: false, reason: 'error' };
+            }
+        }
+    },
+
+    /* Suscripción Realtime: llama al callback cada vez que cambia una ruta.
+       También detecta el ciclo DELETE+INSERT del reset cada 10 minutos. */
+    initRoutesRealtime(onUpdate) {
+        try {
+            let resetDebounce = null;   // evita 5 re-renders por los 5 INSERTs del reset
+
+            supabase
+                .channel('routes-realtime')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'routes' }, payload => {
+                    // Incremento normal: actualizar solo la fila afectada en caché
+                    const cached = localStorage.getItem('em_routes');
+                    if (cached) {
+                        try {
+                            const routes = JSON.parse(cached);
+                            const idx = routes.findIndex(r => r.id === payload.new.id);
+                            if (idx !== -1) {
+                                routes[idx].current = payload.new.current;
+                                localStorage.setItem('em_routes', JSON.stringify(routes));
+                            }
+                        } catch {}
+                    }
+                    if (typeof onUpdate === 'function') onUpdate({ type: 'update', row: payload.new });
+                })
+                .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'routes' }, () => {
+                    // El reset borra todas las filas: limpiar caché local
+                    localStorage.removeItem('em_routes');
+                })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'routes' }, () => {
+                    // El reset reinserta las 5 filas — debounce para disparar solo una vez
+                    clearTimeout(resetDebounce);
+                    resetDebounce = setTimeout(() => {
+                        if (typeof onUpdate === 'function') onUpdate({ type: 'reset' });
+                    }, 300);
+                })
+                .subscribe();
+        } catch (e) {
+            console.warn('[Externado Move] Realtime no disponible:', e.message);
+        }
     },
 
     /* ---------- HELPERS ---------- */
@@ -344,3 +358,4 @@ const DB = {
         return { 'Zona Oscura': 'zone', 'Presencia Policial': 'police', 'Robo': 'robbery' }[type] || '';
     },
 };
+

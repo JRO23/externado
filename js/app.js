@@ -6,17 +6,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Inicializar autenticación con Supabase (sin bloquear si falla)
     try { await Auth.init(); } catch(e) { console.warn('Auth init error:', e); }
 
-    renderFeaturedRoutes();
-    renderRoutes();
-    renderTicker();
+    await renderFeaturedRoutes();
+    await renderRoutes();
+    await renderTicker();
     renderActivityFeed();
-    renderRouteStatusList();
+    await renderRouteStatusList();
 
     try { await renderReports(); } catch(e) { console.warn('renderReports error:', e); }
     try { await renderRecentRequestsPreview(); } catch(e) {}
 
     initSOS();
     animateStats();
+
+    // Activar Realtime: actualizar contadores en tiempo real en todos los navegadores
+    DB.initRoutesRealtime(async (event) => {
+        // Tanto en actualizaciones normales como en el reset cada 10 min, re-renderizar
+        await renderFeaturedRoutes();
+        await renderRoutes();
+        await renderRouteStatusList();
+        if (event?.type === 'reset') {
+            showNotification('🔄 Rutas reiniciadas', 'Las caravanas se han reiniciado. ¡Únete ahora!', 'success');
+        }
+    });
 });
 
 // Cargar marcadores de incidentes en el mapa (espera a que Leaflet init)
@@ -100,13 +111,12 @@ async function submitReport(e) {
    ============================================ */
 
 /* --- 4 Cuadros Destacados --- */
-function renderFeaturedRoutes() {
+async function renderFeaturedRoutes() {
     const container = document.getElementById('featured-routes');
     if (!container) return;
-    const routes = DB.getRoutes();
-    // Mostrar solo las primeras 4 rutas como cuadros destacados
-    const featured = routes.slice(0, 4);
-    container.innerHTML = featured.map((route, i) => {
+    const routes = await DB.getRoutes();
+    // Mostrar todas las rutas activas como cuadros destacados
+    container.innerHTML = routes.map((route, i) => {
         const isFull = route.current >= route.max;
         const pct    = Math.round((route.current / route.max) * 100);
         const spotsLeft = route.max - route.current;
@@ -144,30 +154,36 @@ function renderFeaturedRoutes() {
     }).join('');
 }
 
-function joinFeaturedRoute(id) {
-    const success = DB.joinRoute(id);
-    if (success) {
-        renderFeaturedRoutes();
-        renderRoutes();
-        renderRouteStatusList();
-        const route = DB.getRoutes().find(r => r.id === id);
-        if (route) pushActivityNotif({
+async function joinFeaturedRoute(id) {
+    if (!Auth.isLoggedIn()) {
+        showNotification('🔐 Inicia sesión', 'Debes estar registrado para unirte a una ruta.', 'warning');
+        openAuthModal();
+        return;
+    }
+    const result = await DB.joinRoute(id);
+    if (result.ok) {
+        await renderFeaturedRoutes();
+        await renderRoutes();
+        await renderRouteStatusList();
+        pushActivityNotif({
             type:   'joined',
             icon:   '🚶',
-            route:  route.name,
-            detail: `Una persona se unió a la caravana hacia ${route.station}. Cupos restantes: ${route.max - route.current}`,
+            route:  `Ruta #${id}`,
+            detail: `Una persona se unió a la caravana. Cupos restantes: ${result.max - result.current}`,
             time:   Date.now(),
         });
         showNotification('🚶 ¡Unido!', 'Te has unido a la ruta. ¡Nos vemos en la entrada!', 'success');
-    } else {
+    } else if (result.reason === 'full') {
         showNotification('🔒 Sin cupo', 'Esta ruta ya está llena. Elige otra.', 'warning');
+    } else {
+        showNotification('❌ Error', 'No se pudo unir a la ruta. Intenta de nuevo.', 'warning');
     }
 }
 
-function renderRoutes() {
+async function renderRoutes() {
     const grid = document.getElementById('routes-grid');
     if (!grid) return;
-    const routes = DB.getRoutes();
+    const routes = await DB.getRoutes();
     grid.innerHTML = '';
     routes.forEach(route => {
         const pct       = Math.round((route.current / route.max) * 100);
@@ -198,36 +214,40 @@ function renderRoutes() {
     });
 }
 
-function joinRoute(id) {
-    const success = DB.joinRoute(id);
-    if (success) {
-        renderFeaturedRoutes();
-        renderRoutes();
-        renderRouteStatusList();
-        // Push live notification
-        const routes = DB.getRoutes();
-        const route  = routes.find(r => r.id === id);
-        if (route) pushActivityNotif({
+async function joinRoute(id) {
+    if (!Auth.isLoggedIn()) {
+        showNotification('🔐 Inicia sesión', 'Debes estar registrado para unirte a una ruta.', 'warning');
+        openAuthModal();
+        return;
+    }
+    const result = await DB.joinRoute(id);
+    if (result.ok) {
+        await renderFeaturedRoutes();
+        await renderRoutes();
+        await renderRouteStatusList();
+        pushActivityNotif({
             type:    'joined',
             icon:    '🚶',
-            route:   route.name,
-            detail:  `Una persona se unió a la caravana hacia ${route.station}. Cupos restantes: ${route.max - route.current}`,
+            route:   `Ruta #${id}`,
+            detail:  `Una persona se unió a la caravana. Cupos restantes: ${result.max - result.current}`,
             time:    Date.now(),
         });
         showNotification('🚶 ¡Unido!', 'Te has unido a la ruta. ¡Nos vemos en la entrada!', 'success');
-    } else {
+    } else if (result.reason === 'full') {
         showNotification('🔒 Sin cupo', 'Esta ruta ya está llena. Elige otra.', 'warning');
+    } else {
+        showNotification('❌ Error', 'No se pudo unir a la ruta. Intenta de nuevo.', 'warning');
     }
 }
 
 /* ============================================
    TICKER — BARRA DE ACTIVIDAD SUPERIOR
    ============================================ */
-function renderTicker() {
+async function renderTicker() {
     const inner = document.getElementById('ticker-inner');
     if (!inner) return;
 
-    const routes = DB.getRoutes();
+    const routes = await DB.getRoutes();
     const msgs = [
         ...routes.map(r => {
             const pct = Math.round((r.current / r.max) * 100);
@@ -326,11 +346,11 @@ function renderActivityFeed() {
     if (count) count.textContent = `${_activityLog.length} evento${_activityLog.length !== 1 ? 's' : ''}`;
 }
 
-function renderRouteStatusList() {
+async function renderRouteStatusList() {
     const container = document.getElementById('route-status-list');
     if (!container) return;
 
-    const routes = DB.getRoutes();
+    const routes = await DB.getRoutes();
     container.innerHTML = routes.map(r => {
         const pct      = Math.round((r.current / r.max) * 100);
         const fillCls  = pct >= 90 ? 'high' : pct >= 60 ? 'med' : '';
