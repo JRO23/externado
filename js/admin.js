@@ -56,7 +56,7 @@ async function renderAdminKPIs() {
         DB.getRequests(),
         DB.getReports(),
         DB.getUsers(),
-        Promise.resolve(DB.getRoutes()),
+        DB.getRoutes(),
     ]);
 
     const kpis = [
@@ -181,10 +181,15 @@ async function renderAdminUsers() {
 }
 
 /* ---------- ROUTES ---------- */
-function renderAdminRoutes() {
+async function renderAdminRoutes() {
     const grid = document.getElementById('admin-routes-grid');
     if (!grid) return;
-    const routes = DB.getRoutes();
+    grid.innerHTML = `<div class="empty-state"><span class="icon">⏳</span>Cargando rutas...</div>`;
+    const routes = await DB.getRoutes();
+    if (!routes.length) {
+        grid.innerHTML = `<div class="empty-state"><span class="icon">🚶</span>No hay rutas activas.</div>`;
+        return;
+    }
     grid.innerHTML = routes.map(route => {
         const pct = Math.round((route.current / route.max) * 100);
         const fillClass = pct >= 90 ? 'full' : pct >= 60 ? 'medium' : '';
@@ -192,46 +197,18 @@ function renderAdminRoutes() {
             <div class="route-card-header" style="background:${route.color};color:${route.textColor};">${route.station}</div>
             <div class="route-card-body">
                 <div class="route-name">${route.name}</div>
-                <div class="route-meta">🕐 ${route.time} | Puerta Principal</div>
+                <div class="route-meta">🕐 ${route.time} | ${route.duration || 'Puerta Principal'}</div>
                 <div class="route-capacity">
                     <span class="route-cap-text">${route.current}/${route.max}</span>
                     <span style="font-size:0.72rem;color:var(--mid);font-weight:700;">${pct}%</span>
                 </div>
                 <div class="capacity-bar"><div class="capacity-fill ${fillClass}" style="width:${pct}%;"></div></div>
-                <div style="display:flex;gap:8px;margin-top:10px;">
-                    <button class="action-btn reject" onclick="deleteRoute(${route.id})">🗑️ Eliminar</button>
-                    <button class="action-btn finish" onclick="resetRoute(${route.id})">↺ Resetear</button>
+                <div style="margin-top:10px;font-size:0.78rem;color:var(--mid);">
+                    ℹ️ Las rutas se reinician automáticamente cada 10 min via pg_cron.
                 </div>
             </div>
         </div>`;
     }).join('');
-}
-
-function deleteRoute(id) {
-    const routes = DB.getRoutes().filter(r => r.id !== id);
-    DB.saveRoutes(routes);
-    renderAdminRoutes();
-    renderAdminKPIs();
-    showNotification('🗑️ Ruta eliminada', 'La ruta ha sido removida.', 'warning');
-}
-
-function resetRoute(id) {
-    const routes = DB.getRoutes();
-    const route  = routes.find(r => r.id === id);
-    if (route) { route.current = 0; DB.saveRoutes(routes); renderAdminRoutes(); showNotification('↺ Cupo reseteado', 'El cupo de la ruta vuelve a 0.', 'success'); }
-}
-
-function addNewRoute() {
-    const name    = prompt('Nombre de la ruta (Ej: Entrada U → Chapinero):');
-    if (!name) return;
-    const station = prompt('Nombre del destino:') || name;
-    const time    = prompt('Hora de salida (Ej: 04:00 PM):') || '12:00 PM';
-    const max     = parseInt(prompt('Capacidad máxima:') || '15') || 15;
-    const routes  = DB.getRoutes();
-    routes.push({ id: Date.now(), name, station, time, current: 0, max, color: '#D32F2F', textColor: '#fff' });
-    DB.saveRoutes(routes);
-    renderAdminRoutes();
-    showNotification('✅ Ruta creada', `"${name}" agregada exitosamente.`, 'success');
 }
 
 /* ---------- HELPERS ---------- */

@@ -291,43 +291,27 @@ function renderActivityFeed() {
     const count  = document.getElementById('activity-count');
     if (!list) return;
 
-    const routes = DB.getRoutes();
-
-    // Generar notificaciones de ejemplo si el log está vacío
+    // Seed fijo con las 5 rutas activas (no necesita DB.getRoutes())
     if (_activityLog.length === 0) {
         const now = Date.now();
         const m   = 60 * 1000;
         const seed = [
-            { type:'joined', icon:'🚶', route: routes[0]?.name || 'Ruta 1',
-              detail: `3 personas se unieron. Cupos restantes: ${routes[0] ? routes[0].max - routes[0].current : 6}`,
-              time: now - 2*m },
-            { type:'joined', icon:'🚶', route: routes[3]?.name || 'Ruta 4',
-              detail: `1 persona se unió a la caravana hacia ${routes[3]?.station || 'La Candelaria'}.`,
-              time: now - 7*m },
-            { type:'joined', icon:'🚶', route: routes[6]?.name || 'Ruta 7',
-              detail: `2 personas confirmaron su lugar hacia ${routes[6]?.station || 'Centro Internacional'}.`,
-              time: now - 12*m },
-            { type:'full',   icon:'🔒', route: routes[2]?.name || 'Ruta 3',
-              detail: `Cupo completo en la caravana a ${routes[2]?.station || 'San Victorino'}. Salida en ${routes[2]?.time || '5:30 PM'}.`,
-              time: now - 18*m },
-            { type:'joined', icon:'🚶', route: routes[1]?.name || 'Ruta 2',
-              detail: `4 personas ya están listas para la salida hacia ${routes[1]?.station || 'Av. Jiménez'}.`,
-              time: now - 25*m },
-            { type:'joined', icon:'🚶', route: routes[4]?.name || 'Ruta 5',
-              detail: `Caravana al ${routes[4]?.station || 'Portal El Dorado'} con 7 confirmados. Únete antes de las ${routes[4]?.time || '6:00 PM'}.`,
-              time: now - 34*m },
-            { type:'joined', icon:'🚶', route: routes[7]?.name || 'Ruta 8',
-              detail: `Nuevo grupo formado hacia ${routes[7]?.station || 'Museo Nacional'}. Solo 8 cupos disponibles.`,
-              time: now - 41*m },
-            { type:'joined', icon:'🚶', route: routes[5]?.name || 'Ruta 6',
-              detail: `Caravana nocturna a ${routes[5]?.station || 'Chapinero'} confirmada. Salen desde la puerta principal.`,
-              time: now - 55*m },
-            { type:'full',   icon:'🔒', route: routes[8]?.name || 'Ruta 9',
-              detail: `¡Cupo lleno! La caravana al ${routes[8]?.station || 'Terminal del Sur'} ya no tiene plazas.`,
-              time: now - 68*m },
-            { type:'joined', icon:'🚶', route: routes[9]?.name || 'Ruta 10',
-              detail: `Primera persona confirmada en la caravana a ${routes[9]?.station || 'Calle 100'}. ¡Únete tú también!`,
-              time: now - 80*m },
+            { type:'joined', icon:'🚶', route: 'Entrada U → Estación Las Aguas',
+              detail: '3 personas se unieron. Cupos restantes: 12', time: now - 2*m },
+            { type:'joined', icon:'🚶', route: 'Entrada U → La Candelaria',
+              detail: '1 persona se unió a la caravana hacia LA CANDELARIA.', time: now - 7*m },
+            { type:'joined', icon:'🚶', route: 'Entrada U → Museo Nacional',
+              detail: '2 personas confirmaron su lugar hacia MUSEO NACIONAL.', time: now - 12*m },
+            { type:'full',   icon:'🔒', route: 'Entrada U → San Victorino',
+              detail: 'Cupo completo en la caravana a SAN VICTORINO. Salida a las 5:30 PM.', time: now - 18*m },
+            { type:'joined', icon:'🚶', route: 'Entrada U → Av. Jiménez',
+              detail: '4 personas ya están listas para la salida hacia AV. JIMÉNEZ.', time: now - 25*m },
+            { type:'joined', icon:'🚶', route: 'Entrada U → Estación Las Aguas',
+              detail: 'Caravana hacia ESTACIÓN LAS AGUAS con 7 confirmados. ¡Únete!', time: now - 34*m },
+            { type:'joined', icon:'🚶', route: 'Entrada U → Museo Nacional',
+              detail: 'Nuevo grupo formado hacia MUSEO NACIONAL. Solo 8 cupos disponibles.', time: now - 41*m },
+            { type:'joined', icon:'🚶', route: 'Entrada U → San Victorino',
+              detail: 'Caravana a SAN VICTORINO confirmada. Salen desde la puerta principal.', time: now - 55*m },
         ];
         seed.forEach(s => _activityLog.push(s));
     }
@@ -345,6 +329,7 @@ function renderActivityFeed() {
 
     if (count) count.textContent = `${_activityLog.length} evento${_activityLog.length !== 1 ? 's' : ''}`;
 }
+
 
 async function renderRouteStatusList() {
     const container = document.getElementById('route-status-list');
